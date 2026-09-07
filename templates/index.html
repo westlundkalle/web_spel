@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CYBER SURVIVOR: AI Bullet Heaven</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="game-wrapper">
+    <!-- Top XP Bar spanning the screen -->
+    <div class="xp-bar-container">
+      <div id="xp-bar-fill" class="xp-bar-fill" style="width: 0%;"></div>
+      <div class="level-indicator">
+        <span class="level-label">LEVEL</span>
+        <span id="player-level" class="level-val">1</span>
+      </div>
+    </div>
+
+    <!-- HUD Overlay -->
+    <header class="game-hud">
+      <div class="hud-left">
+        <div class="health-container">
+          <div class="health-label">HULL INTEGRITY</div>
+          <div class="health-bar-bg">
+            <div id="health-bar-fill" class="health-bar-fill" style="width: 100%;"></div>
+            <span id="health-text" class="health-text">100 / 100</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="hud-center">
+        <div class="timer-box">
+          <span class="hud-sub">SURVIVAL TIME</span>
+          <span id="timer-display" class="hud-val">00:00</span>
+        </div>
+      </div>
+
+      <div class="hud-right">
+        <div class="stat-box">
+          <span class="hud-sub">SCORE</span>
+          <span id="score-display" class="hud-val">0</span>
+        </div>
+        <div class="stat-box">
+          <span class="hud-sub">KILLS</span>
+          <span id="kills-display" class="hud-val">0</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Canvas Container -->
+    <main class="canvas-container">
+      <canvas id="gameCanvas" width="960" height="640"></canvas>
+      
+      <!-- Controls hint banner -->
+      <div class="controls-hint">
+        <span>[W][A][S][D] or [ARROWS] to Move</span> &bull;
+        <span>Blaster Auto-Targets Nearest Hostile</span> &bull;
+        <span>Collect Blue Nanite Orbs for XP</span>
+      </div>
+    </main>
+
+    <!-- Level Up Modal (Pause game while selecting upgrade) -->
+    <div id="level-up-modal" class="modal-overlay hidden">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div class="glitch-title" data-text="SUBSYSTEM UPGRADE AVAILABLE">SUBSYSTEM UPGRADE AVAILABLE</div>
+          <p class="modal-subtitle">Select an enhancement module to integrate into your mainframe</p>
+          <div id="ai-badge" class="ai-badge">🤖 AI SYNTHESIZED UPGRADES</div>
+        </div>
+
+        <div id="upgrade-cards" class="upgrade-cards-grid">
+          <!-- Cards injected dynamically by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Game Over Modal -->
+    <div id="game-over-modal" class="modal-overlay hidden">
+      <div class="modal-content game-over-card">
+        <h1 class="critical-text">MISSION FAILED</h1>
+        <p class="game-over-sub">Mainframe breached. Hull integrity reached 0%.</p>
+
+        <div class="final-stats-grid">
+          <div class="final-stat">
+            <span class="label">Time Survived</span>
+            <span id="final-time" class="val">00:00</span>
+          </div>
+          <div class="final-stat">
+            <span class="label">Final Level</span>
+            <span id="final-level" class="val">1</span>
+          </div>
+          <div class="final-stat">
+            <span class="label">Hostiles Purged</span>
+            <span id="final-kills" class="val">0</span>
+          </div>
+          <div class="final-stat">
+            <span class="label">Final Score</span>
+            <span id="final-score" class="val">0</span>
+          </div>
+        </div>
+
+        <button id="restart-btn" class="btn-restart">
+          REINITIALIZE SYSTEM
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/js/game.js"></script>
+</body>
+</html>
