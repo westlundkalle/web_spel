@@ -1,6 +1,6 @@
 /**
  * CYBER SURVIVOR: AI Bullet Heaven
- * Pure HTML5 Canvas + JavaScript Game Engine
+ * Pure HTML5 Canvas + JavaScript Game Engine with Web Audio Synthesizer & AI Integration
  */
 
 // Canvas & Rendering Context
@@ -16,6 +16,15 @@ const timerDisplay = document.getElementById('timer-display');
 const scoreDisplay = document.getElementById('score-display');
 const killsDisplay = document.getElementById('kills-display');
 
+const audioToggleBtn = document.getElementById('audio-toggle');
+const aiStatusPill = document.getElementById('ai-status-indicator');
+const aiStatusText = document.getElementById('ai-status-text');
+
+const eventBanner = document.getElementById('event-banner');
+const eventTagTitle = document.getElementById('event-tag-title');
+const eventBossName = document.getElementById('event-boss-name');
+const eventTransmission = document.getElementById('event-transmission');
+
 const levelUpModal = document.getElementById('level-up-modal');
 const upgradeCardsContainer = document.getElementById('upgrade-cards');
 const aiBadge = document.getElementById('ai-badge');
@@ -26,6 +35,217 @@ const finalLevelDisplay = document.getElementById('final-level');
 const finalKillsDisplay = document.getElementById('final-kills');
 const finalScoreDisplay = document.getElementById('final-score');
 const restartBtn = document.getElementById('restart-btn');
+
+// --- Procedural Web Audio Synthesizer (Zero External Dependencies) ---
+class SoundController {
+  constructor() {
+    this.ctx = null;
+    this.enabled = true;
+  }
+
+  init() {
+    if (!this.ctx) {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      this.ctx = new AudioCtx();
+    }
+    if (this.ctx && this.ctx.state === 'suspended') {
+      this.ctx.resume();
+    }
+  }
+
+  toggle() {
+    this.enabled = !this.enabled;
+    audioToggleBtn.textContent = this.enabled ? '🔊' : '🔇';
+    audioToggleBtn.style.opacity = this.enabled ? '1' : '0.5';
+  }
+
+  playShoot() {
+    if (!this.enabled || !this.ctx) return;
+    try {
+      const t = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(680, t);
+      osc.frequency.exponentialRampToValueAtTime(140, t + 0.08);
+
+      gain.gain.setValueAtTime(0.08, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(t);
+      osc.stop(t + 0.08);
+    } catch (e) {}
+  }
+
+  playHit() {
+    if (!this.enabled || !this.ctx) return;
+    try {
+      const t = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(120, t);
+      osc.frequency.linearRampToValueAtTime(40, t + 0.06);
+
+      gain.gain.setValueAtTime(0.09, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(t);
+      osc.stop(t + 0.06);
+    } catch (e) {}
+  }
+
+  playGem() {
+    if (!this.enabled || !this.ctx) return;
+    try {
+      const t = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(950, t);
+      osc.frequency.exponentialRampToValueAtTime(1400, t + 0.09);
+
+      gain.gain.setValueAtTime(0.07, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(t);
+      osc.stop(t + 0.09);
+    } catch (e) {}
+  }
+
+  playExplosion() {
+    if (!this.enabled || !this.ctx) return;
+    try {
+      const t = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(90, t);
+      osc.frequency.exponentialRampToValueAtTime(25, t + 0.28);
+
+      gain.gain.setValueAtTime(0.18, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(t);
+      osc.stop(t + 0.28);
+    } catch (e) {}
+  }
+
+  playLevelUp() {
+    if (!this.enabled || !this.ctx) return;
+    try {
+      const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+      notes.forEach((freq, idx) => {
+        const t = this.ctx.currentTime + idx * 0.08;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, t);
+
+        gain.gain.setValueAtTime(0.12, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(t);
+        osc.stop(t + 0.22);
+      });
+    } catch (e) {}
+  }
+
+  playBossAlert() {
+    if (!this.enabled || !this.ctx) return;
+    try {
+      const t = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(140, t);
+      osc.frequency.linearRampToValueAtTime(260, t + 0.4);
+      osc.frequency.linearRampToValueAtTime(120, t + 0.8);
+
+      gain.gain.setValueAtTime(0.2, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.8);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(t);
+      osc.stop(t + 0.8);
+    } catch (e) {}
+  }
+
+  playGameOver() {
+    if (!this.enabled || !this.ctx) return;
+    try {
+      const t = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(280, t);
+      osc.frequency.exponentialRampToValueAtTime(60, t + 0.9);
+
+      gain.gain.setValueAtTime(0.2, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.9);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(t);
+      osc.stop(t + 0.9);
+    } catch (e) {}
+  }
+}
+
+const sounds = new SoundController();
+
+// Init Audio on first user interaction
+window.addEventListener('click', () => sounds.init(), { once: true });
+window.addEventListener('keydown', () => sounds.init(), { once: true });
+audioToggleBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  sounds.init();
+  sounds.toggle();
+});
+
+// Check AI Backend Status on load
+async function checkBackendAIStatus() {
+  try {
+    const res = await fetch('/api/health');
+    const data = await res.json();
+    if (data.ai_ready) {
+      aiStatusPill.className = 'ai-status-pill online';
+      aiStatusText.textContent = `AI: ${data.model.toUpperCase()}`;
+    } else {
+      aiStatusPill.className = 'ai-status-pill fallback';
+      aiStatusText.textContent = 'AI: FALLBACK';
+    }
+  } catch (e) {
+    aiStatusPill.className = 'ai-status-pill fallback';
+    aiStatusText.textContent = 'AI: OFFLINE';
+  }
+}
+checkBackendAIStatus();
 
 // --- Input Handling ---
 const keys = {
@@ -148,6 +368,7 @@ class Player {
     }
 
     if (closestEnemy) {
+      sounds.playShoot();
       const baseAngle = Math.atan2(closestEnemy.y - this.y, closestEnemy.x - this.x);
       const count = this.projectileCount;
       const baseDamage = 25 * this.damageMult;
@@ -168,24 +389,28 @@ class Player {
   takeDamage(amount) {
     if (this.invulnerableTimer > 0) return false;
 
+    sounds.playHit();
     this.health = Math.max(0, this.health - amount);
     this.invulnerableTimer = this.invulnerableDuration;
     createDamageNumber(this.x, this.y - 20, Math.round(amount), '#ff2a4b');
     updateHUD();
 
     if (this.health <= 0) {
+      sounds.playGameOver();
       triggerGameOver();
     }
     return true;
   }
 
   addXP(amount) {
+    sounds.playGem();
     this.xp += amount;
     game.score += amount * 10;
     while (this.xp >= this.xpToNext) {
       this.xp -= this.xpToNext;
       this.level += 1;
       this.xpToNext = Math.round(this.xpToNext * 1.45 + 5);
+      sounds.playLevelUp();
       triggerLevelUp();
     }
     updateHUD();
@@ -211,7 +436,6 @@ class Player {
     ctx.shadowColor = '#00f0ff';
     ctx.fillStyle = '#00f0ff';
     
-    // Triangle ship pointer facing velocity or nearest
     ctx.beginPath();
     ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
     ctx.fill();
@@ -265,13 +489,25 @@ class Projectile {
 }
 
 class Enemy {
-  constructor(type, x, y, difficultyMultiplier) {
+  constructor(type, x, y, difficultyMultiplier, bossConfig = null) {
     this.type = type;
     this.x = x;
     this.y = y;
     this.markedForDeletion = false;
+    this.isBoss = false;
 
-    if (type === 'swarmer') {
+    if (bossConfig) {
+      this.isBoss = true;
+      this.bossName = bossConfig.boss_name || 'TITAN BOSS';
+      this.radius = 34;
+      const stats = bossConfig.stats || {};
+      this.speed = 70 * (stats.speed_mult || 1.0);
+      this.health = 450 * (stats.health_mult || 4.0);
+      this.maxHealth = this.health;
+      this.damage = 40 * (stats.damage_mult || 1.8);
+      this.color = bossConfig.color || '#ff0055';
+      this.xpValue = 30;
+    } else if (type === 'swarmer') {
       this.radius = 12;
       this.speed = 140 * (1 + difficultyMultiplier * 0.05);
       this.health = 20 * difficultyMultiplier;
@@ -316,17 +552,28 @@ class Enemy {
     createDamageNumber(this.x, this.y - 12, Math.round(amount), '#ffffff');
     if (this.health <= 0) {
       this.markedForDeletion = true;
-      spawnExplosion(this.x, this.y, this.color);
+      sounds.playExplosion();
+      spawnExplosion(this.x, this.y, this.color, this.isBoss ? 35 : 12);
       game.kills += 1;
       game.score += this.xpValue * 25;
-      game.gems.push(new XpGem(this.x, this.y, this.xpValue));
+      
+      // Boss drops cluster of gems
+      if (this.isBoss) {
+        for (let i = 0; i < 6; i++) {
+          const offsetX = (Math.random() - 0.5) * 40;
+          const offsetY = (Math.random() - 0.5) * 40;
+          game.gems.push(new XpGem(this.x + offsetX, this.y + offsetY, 5));
+        }
+      } else {
+        game.gems.push(new XpGem(this.x, this.y, this.xpValue));
+      }
       updateHUD();
     }
   }
 
   draw(ctx) {
     ctx.save();
-    ctx.shadowBlur = 6;
+    ctx.shadowBlur = this.isBoss ? 16 : 6;
     ctx.shadowColor = this.color;
     ctx.fillStyle = this.color;
     
@@ -335,15 +582,30 @@ class Enemy {
     ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
     ctx.fill();
 
-    // Mini Health Bar above enemy
-    if (this.health < this.maxHealth) {
-      const barW = this.radius * 2;
-      const barH = 3;
+    // Boss Aura ring
+    if (this.isBoss) {
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.radius + 6 + Math.sin(Date.now() / 150) * 3, 0, Math.PI * 2);
+      ctx.strokeStyle = this.color;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Boss Label
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 11px Orbitron, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(this.bossName, this.x, this.y - this.radius - 14);
+    }
+
+    // Health Bar above enemy
+    if (this.health < this.maxHealth || this.isBoss) {
+      const barW = this.radius * 2.2;
+      const barH = this.isBoss ? 5 : 3;
       const pct = Math.max(0, this.health / this.maxHealth);
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-      ctx.fillRect(this.x - this.radius, this.y - this.radius - 8, barW, barH);
-      ctx.fillStyle = '#00ff88';
-      ctx.fillRect(this.x - this.radius, this.y - this.radius - 8, barW * pct, barH);
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      ctx.fillRect(this.x - barW / 2, this.y - this.radius - 8, barW, barH);
+      ctx.fillStyle = this.isBoss ? '#ff0055' : '#00ff88';
+      ctx.fillRect(this.x - barW / 2, this.y - this.radius - 8, barW * pct, barH);
     }
 
     ctx.restore();
@@ -358,7 +620,7 @@ class XpGem {
     this.radius = 5 + Math.min(4, value);
     this.markedForDeletion = false;
     this.speed = 0;
-    this.maxSpeed = 600;
+    this.maxSpeed = 640;
   }
 
   update(dt, player) {
@@ -367,7 +629,7 @@ class XpGem {
     // Magnetic pull towards player
     if (dist <= player.magnetRadius) {
       const angle = Math.atan2(player.y - this.y, player.x - this.x);
-      this.speed = Math.min(this.maxSpeed, this.speed + 800 * dt);
+      this.speed = Math.min(this.maxSpeed, this.speed + 850 * dt);
       this.x += Math.cos(angle) * this.speed * dt;
       this.y += Math.sin(angle) * this.speed * dt;
 
@@ -395,17 +657,17 @@ class XpGem {
 const particles = [];
 const damageNumbers = [];
 
-function spawnExplosion(x, y, color) {
-  for (let i = 0; i < 10; i++) {
+function spawnExplosion(x, y, color, count = 10) {
+  for (let i = 0; i < count; i++) {
     const angle = Math.random() * Math.PI * 2;
-    const speed = 40 + Math.random() * 120;
+    const speed = 40 + Math.random() * 150;
     particles.push({
       x, y,
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed,
       color,
-      radius: 2 + Math.random() * 2,
-      lifespan: 0.35 + Math.random() * 0.25,
+      radius: 2 + Math.random() * 2.5,
+      lifespan: 0.35 + Math.random() * 0.3,
       alpha: 1
     });
   }
@@ -429,11 +691,12 @@ const game = {
   enemies: [],
   gems: [],
   spawnTimer: 0,
-  spawnInterval: 1.2, // seconds between spawns (decreases over time)
+  spawnInterval: 1.2,
   survivalTime: 0,
   score: 0,
   kills: 0,
-  state: 'PLAYING', // 'PLAYING', 'LEVEL_UP', 'GAME_OVER'
+  bossSpawnedAt: {}, // tracking minute marks triggered
+  state: 'PLAYING',
   lastTimestamp: 0
 };
 
@@ -450,9 +713,11 @@ function initGame() {
   game.survivalTime = 0;
   game.score = 0;
   game.kills = 0;
+  game.bossSpawnedAt = {};
   game.state = 'PLAYING';
   game.lastTimestamp = performance.now();
 
+  eventBanner.classList.add('hidden');
   levelUpModal.classList.add('hidden');
   gameOverModal.classList.add('hidden');
 
@@ -460,7 +725,6 @@ function initGame() {
 }
 
 function spawnEnemyWave() {
-  // Determine spawn coordinates just beyond canvas edge
   let x, y;
   const edge = Math.floor(Math.random() * 4);
   if (edge === 0) { // Top
@@ -477,20 +741,59 @@ function spawnEnemyWave() {
     y = Math.random() * canvas.height;
   }
 
-  // Difficulty scaling based on survival time
   const minutes = game.survivalTime / 60;
   const difficultyMult = 1 + minutes * 0.45;
 
-  // Choose enemy type based on elapsed time
   let type = 'swarmer';
   const roll = Math.random();
-  if (minutes > 1.5 && roll > 0.82) {
+  if (minutes > 1.2 && roll > 0.82) {
     type = 'dreadnought';
-  } else if (minutes > 0.4 && roll > 0.6) {
+  } else if (minutes > 0.35 && roll > 0.6) {
     type = 'striker';
   }
 
   game.enemies.push(new Enemy(type, x, y, difficultyMult));
+}
+
+// Trigger dynamic AI Boss Encounter
+async function triggerBossEncounter(minuteMark) {
+  sounds.playBossAlert();
+
+  let bossConfig = null;
+  try {
+    const res = await fetch('/api/generate-boss-event', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        survival_time: game.survivalTime,
+        level: game.player.level
+      })
+    });
+    const data = await res.json();
+    bossConfig = data.event;
+  } catch (err) {
+    bossConfig = {
+      boss_name: "TITAN VORTEX",
+      title: "Core Anomaly",
+      transmission: "SIGNAL CORRUPTED. PURGING THREAT.",
+      color: "#ff0055",
+      stats: { health_mult: 4.0, speed_mult: 0.9, damage_mult: 1.8 }
+    };
+  }
+
+  // Display Event Banner
+  eventTagTitle.textContent = `${bossConfig.title.toUpperCase()} (MINUTE ${minuteMark})`;
+  eventBossName.textContent = bossConfig.boss_name;
+  eventTransmission.textContent = `"${bossConfig.transmission}"`;
+  eventBanner.classList.remove('hidden');
+
+  // Hide banner after 5.5 seconds
+  setTimeout(() => {
+    eventBanner.classList.add('hidden');
+  }, 5500);
+
+  // Spawn Boss Enemy at top center
+  game.enemies.push(new Enemy('boss', canvas.width / 2, -40, 1.0, bossConfig));
 }
 
 // --- HUD & UI Updates ---
@@ -521,16 +824,16 @@ function updateHUD() {
 async function triggerLevelUp() {
   game.state = 'LEVEL_UP';
   levelUpModal.classList.remove('hidden');
-  upgradeCardsContainer.innerHTML = '<div style="grid-column: 1 / -1; padding: 20px; font-size: 16px;">Synthesizing tactical upgrade data...</div>';
+  upgradeCardsContainer.innerHTML = '<div style="grid-column: 1 / -1; padding: 25px; font-family: Orbitron; font-size: 14px; letter-spacing: 2px; color: var(--accent-cyan);">🤖 NEURAL SYNTHESIS IN PROGRESS...</div>';
 
   try {
     const payload = {
       level: game.player.level,
       stats: {
-        damage: game.player.damageMult,
-        attack_speed: game.player.attackSpeedMult,
+        damage: `${Math.round(game.player.damageMult * 100)}%`,
+        attack_speed: `${Math.round(game.player.attackSpeedMult * 100)}%`,
         projectiles: game.player.projectileCount,
-        speed: game.player.moveSpeedMult,
+        speed: `${Math.round(game.player.moveSpeedMult * 100)}%`,
         health: `${Math.round(game.player.health)}/${game.player.maxHealth}`
       }
     };
@@ -544,7 +847,11 @@ async function triggerLevelUp() {
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const data = await response.json();
 
-    aiBadge.textContent = data.source === 'openai' ? '🤖 AI SYNTHESIZED UPGRADES' : '⚡ TACTICAL FALLBACK PROTOCOL';
+    if (data.source === 'openai') {
+      aiBadge.textContent = `🤖 AI GENERATED (${(data.model || 'gpt-4o-mini').toUpperCase()})`;
+    } else {
+      aiBadge.textContent = '⚡ TACTICAL FALLBACK PROTOCOL';
+    }
     renderUpgradeChoices(data.upgrades);
   } catch (err) {
     console.warn('Backend API request failed, using emergency local upgrades:', err);
@@ -571,10 +878,20 @@ function renderUpgradeChoices(upgrades) {
   upgrades.forEach(upg => {
     const card = document.createElement('div');
     card.className = 'upgrade-card';
+    
+    // Format stat pills
+    const stats = upg.stats || {};
+    const pills = Object.entries(stats).map(([k, v]) => {
+      let label = k.replace('_', ' ').toUpperCase();
+      let valStr = typeof v === 'number' && v < 1 ? `+${Math.round(v * 100)}%` : `+${v}`;
+      return `<span style="display:inline-block; font-size:10px; font-weight:700; background:rgba(0,240,255,0.15); color:#00f0ff; padding:2px 8px; border-radius:10px; margin:2px;">${label} ${valStr}</span>`;
+    }).join(' ');
+
     card.innerHTML = `
       <div class="upgrade-icon">${upg.icon || '⚡'}</div>
       <div class="upgrade-name">${upg.name}</div>
       <div class="upgrade-desc">${upg.description}</div>
+      <div style="margin-bottom:12px;">${pills}</div>
       <div class="upgrade-btn">INSTALL UPGRADE</div>
     `;
 
@@ -618,14 +935,21 @@ restartBtn.addEventListener('click', () => {
 
 // --- Main Game Loop ---
 function gameLoop(timestamp) {
-  const dt = Math.min((timestamp - game.lastTimestamp) / 1000, 0.1); // Cap delta time to prevent large jumps
+  const dt = Math.min((timestamp - game.lastTimestamp) / 1000, 0.1);
   game.lastTimestamp = timestamp;
 
   if (game.state === 'PLAYING') {
     game.survivalTime += dt;
     updateHUD();
 
-    // Spawner tick (scaling rate)
+    // Check boss encounter milestones (e.g. minute 1, minute 2)
+    const currentMinute = Math.floor(game.survivalTime / 60);
+    if (currentMinute >= 1 && !game.bossSpawnedAt[currentMinute]) {
+      game.bossSpawnedAt[currentMinute] = true;
+      triggerBossEncounter(currentMinute);
+    }
+
+    // Spawner tick
     game.spawnTimer += dt;
     const currentSpawnRate = Math.max(0.28, game.spawnInterval - (game.survivalTime / 60) * 0.18);
     if (game.spawnTimer >= currentSpawnRate) {

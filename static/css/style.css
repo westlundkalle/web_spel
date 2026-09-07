@@ -153,13 +153,81 @@ body {
 
 .hud-right {
   display: flex;
-  gap: 24px;
+  align-items: center;
+  gap: 20px;
 }
 
 .stat-box {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
+}
+
+.system-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: 8px;
+}
+
+.btn-icon {
+  background: rgba(0, 240, 255, 0.1);
+  border: 1px solid var(--border-color);
+  color: #fff;
+  border-radius: 4px;
+  width: 32px;
+  height: 32px;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.btn-icon:hover {
+  background: rgba(0, 240, 255, 0.25);
+  box-shadow: 0 0 8px var(--accent-cyan);
+}
+
+.ai-status-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-family: var(--font-display);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-muted);
+}
+
+.ai-status-pill .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #888;
+}
+
+.ai-status-pill.online {
+  border-color: var(--accent-green);
+  color: var(--accent-green);
+}
+.ai-status-pill.online .dot {
+  background: var(--accent-green);
+  box-shadow: 0 0 6px var(--accent-green);
+}
+
+.ai-status-pill.fallback {
+  border-color: var(--accent-yellow);
+  color: var(--accent-yellow);
+}
+.ai-status-pill.fallback .dot {
+  background: var(--accent-yellow);
+  box-shadow: 0 0 6px var(--accent-yellow);
 }
 
 /* Canvas Display */
@@ -409,4 +477,56 @@ body {
   background: #ff4763;
   box-shadow: 0 0 25px rgba(255, 42, 75, 0.8);
   transform: translateY(-2px);
+}
+
+/* In-game AI Event / Boss Alert Banner */
+.event-banner {
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 82%;
+  max-width: 680px;
+  background: rgba(18, 7, 24, 0.94);
+  border: 2px solid var(--accent-pink);
+  border-radius: 6px;
+  box-shadow: 0 0 30px rgba(255, 0, 119, 0.7), inset 0 0 20px rgba(255, 0, 119, 0.25);
+  padding: 14px 20px;
+  text-align: center;
+  z-index: 50;
+  pointer-events: none;
+  animation: bannerSlideIn 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes bannerSlideIn {
+  from { top: -90px; opacity: 0; }
+  to { top: 24px; opacity: 1; }
+}
+
+.event-alert-tag {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: var(--accent-yellow);
+  margin-bottom: 4px;
+  text-shadow: 0 0 8px var(--accent-yellow);
+}
+
+.event-boss-name {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 3px;
+  color: #fff;
+  text-shadow: 0 0 12px var(--accent-pink);
+}
+
+.event-transmission {
+  font-family: var(--font-body);
+  font-size: 15px;
+  color: #ffc2df;
+  letter-spacing: 1px;
+  margin-top: 4px;
+  font-style: italic;
 }
