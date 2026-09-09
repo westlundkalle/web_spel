@@ -79,6 +79,13 @@ FALLBACK_BOSS_EVENTS = [
     }
 ]
 
+def get_active_provider():
+    if os.getenv("GEMINI_API_KEY"):
+        return "gemini"
+    if os.getenv("OPENAI_API_KEY"):
+        return "openai"
+    return "offline-fallback"
+
 @app.route("/")
 def index():
     """Serves the main arcade game client."""
@@ -87,151 +94,232 @@ def index():
 @app.route("/api/health", methods=["GET"])
 def health():
     """Health check endpoint for load balancers, Nginx, and monitoring."""
-    api_key_configured = bool(os.getenv("OPENAI_API_KEY"))
+    provider = get_active_provider()
+    model = (
+        os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+        if provider == "gemini"
+        else (os.getenv("OPENAI_MODEL", "gpt-4o-mini") if provider == "openai" else "offline-fallback")
+    )
     return jsonify({
         "status": "healthy",
-        "ai_ready": api_key_configured,
-        "model": os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
-        "provider": "openai" if api_key_configured else "offline-fallback"
+        "ai_ready": provider != "offline-fallback",
+        "provider": provider,
+        "model": model
     }), 200
 
 @app.route("/api/generate-upgrades", methods=["POST"])
 def generate_upgrades():
     """
     Returns 3 upgrade choices for the player level-up screen.
-    Uses OpenAI API with strict JSON mode if configured; falls back safely.
+    Prioritizes Gemini API, falls back to OpenAI, and finally to local fallback.
     """
     data = request.get_json(silent=True) or {}
     level = data.get("level", 1)
     player_stats = data.get("stats", {})
-    api_key = os.getenv("OPENAI_API_KEY")
+    gemini_key = os.getenv("GEMINI_API_KEY")
+    openai_key = os.getenv("OPENAI_API_KEY")
 
-    if not api_key:
-        logging.info("OpenAI API key not configured. Using balanced fallback upgrades.")
-        import random
-        selected = random.sample(FALLBACK_UPGRADES, min(3, len(FALLBACK_UPGRADES)))
-        return jsonify({
-            "source": "fallback",
-            "upgrades": selected
-        }), 200
+    # 1. Try Gemini API
+    if gemini_key:
+        try:
+            from google import genai
+            from google.genai import types
 
-    try:
-        from openai import OpenAI
-        client = OpenAI(api_key=api_key)
-        model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+            client = genai.Client(api_key=gemini_key)
+            model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
-        prompt = (
-            f"You are a game designer balancing an arcade bullet-heaven survival game.\n"
-            f"The player just reached Level {level}.\n"
-            f"Current player stats: {player_stats}\n\n"
-            f"Generate exactly 3 creative, balanced sci-fi upgrades.\n"
-            f"Return a valid JSON object containing an 'upgrades' array with 3 objects.\n"
-            f"Each upgrade object must have:\n"
-            f"- 'id': unique snake_case string\n"
-            f"- 'name': punchy arcade upgrade name (2-4 words)\n"
-            f"- 'description': 1 clear sentence describing its flavor and mechanical effect\n"
-            f"- 'icon': 1 relevant emoji\n"
-            f"- 'stats': an object choosing 1 or 2 of these stat multipliers: "
-            f"'damage' (0.15 to 0.40), 'attack_speed' (0.15 to 0.35), 'projectile_count' (1), "
-            f"'move_speed' (0.10 to 0.25), 'magnet_radius' (0.25 to 0.60), 'heal' (20 to 50), 'hp_regen' (0.5 to 2.0)"
-        )
+            prompt = (
+                f"You are a game designer balancing an arcade bullet-heaven survival game.\n"
+                f"The player just reached Level {level}.\n"
+                f"Current player stats: {player_stats}\n\n"
+                f"Generate exactly 3 creative, balanced sci-fi upgrades.\n"
+                f"Return a valid JSON object containing an 'upgrades' array with 3 objects.\n"
+                f"Each upgrade object must have:\n"
+                f"- 'id': unique snake_case string\n"
+                f"- 'name': punchy arcade upgrade name (2-4 words)\n"
+                f"- 'description': 1 clear sentence describing its flavor and mechanical effect\n"
+                f"- 'icon': 1 relevant emoji\n"
+                f"- 'stats': an object choosing 1 or 2 of these stat multipliers: "
+                f"'damage' (0.15 to 0.40), 'attack_speed' (0.15 to 0.35), 'projectile_count' (1), "
+                f"'move_speed' (0.10 to 0.25), 'magnet_radius' (0.25 to 0.60), 'heal' (20 to 50), 'hp_regen' (0.5 to 2.0)"
+            )
 
-        response = client.chat.completions.create(
-            model=model,
-            response_format={"type": "json_object"},
-            messages=[
-                {"role": "system", "content": "You are a specialized game design AI. Always respond in valid JSON with an 'upgrades' list."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.8,
-            max_tokens=450
-        )
+            response = client.models.generate_content(
+                model=model,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    temperature=0.8,
+                    max_output_tokens=500
+                )
+            )
 
-        result = json.loads(response.choices[0].message.content.strip())
-        upgrades = result.get("upgrades", [])
+            result = json.loads(response.text.strip())
+            upgrades = result.get("upgrades", [])
+            if isinstance(upgrades, list) and len(upgrades) >= 3:
+                return jsonify({
+                    "source": "gemini",
+                    "model": model,
+                    "upgrades": upgrades[:3]
+                }), 200
+            else:
+                raise ValueError("Gemini did not return 3 valid upgrades.")
+        except Exception as e:
+            logging.warning(f"Gemini upgrade generation failed: {e}. Checking secondary provider...")
 
-        if isinstance(upgrades, list) and len(upgrades) >= 3:
-            return jsonify({
-                "source": "openai",
-                "model": model,
-                "upgrades": upgrades[:3]
-            }), 200
-        else:
-            raise ValueError("AI response did not return a valid list of 3 upgrades.")
+    # 2. Try OpenAI API (fallback)
+    if openai_key:
+        try:
+            from openai import OpenAI
+            client = OpenAI(api_key=openai_key)
+            model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
-    except Exception as e:
-        logging.warning(f"AI upgrade generation failed: {e}. Using fallback protocol.")
-        import random
-        selected = random.sample(FALLBACK_UPGRADES, min(3, len(FALLBACK_UPGRADES)))
-        return jsonify({
-            "source": "fallback",
-            "error": str(e),
-            "upgrades": selected
-        }), 200
+            prompt = (
+                f"You are a game designer balancing an arcade bullet-heaven survival game.\n"
+                f"The player just reached Level {level}.\n"
+                f"Current player stats: {player_stats}\n\n"
+                f"Generate exactly 3 creative, balanced sci-fi upgrades.\n"
+                f"Return a valid JSON object containing an 'upgrades' array with 3 objects.\n"
+                f"Each upgrade object must have:\n"
+                f"- 'id': unique snake_case string\n"
+                f"- 'name': punchy arcade upgrade name (2-4 words)\n"
+                f"- 'description': 1 clear sentence describing its flavor and mechanical effect\n"
+                f"- 'icon': 1 relevant emoji\n"
+                f"- 'stats': an object choosing 1 or 2 of these stat multipliers: "
+                f"'damage' (0.15 to 0.40), 'attack_speed' (0.15 to 0.35), 'projectile_count' (1), "
+                f"'move_speed' (0.10 to 0.25), 'magnet_radius' (0.25 to 0.60), 'heal' (20 to 50), 'hp_regen' (0.5 to 2.0)"
+            )
+
+            response = client.chat.completions.create(
+                model=model,
+                response_format={"type": "json_object"},
+                messages=[
+                    {"role": "system", "content": "You are a specialized game design AI. Always respond in valid JSON with an 'upgrades' list."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.8,
+                max_tokens=450
+            )
+
+            result = json.loads(response.choices[0].message.content.strip())
+            upgrades = result.get("upgrades", [])
+            if isinstance(upgrades, list) and len(upgrades) >= 3:
+                return jsonify({
+                    "source": "openai",
+                    "model": model,
+                    "upgrades": upgrades[:3]
+                }), 200
+        except Exception as e:
+            logging.warning(f"OpenAI upgrade generation failed: {e}. Using local fallback protocol.")
+
+    # 3. Local Balanced Fallback Protocol
+    import random
+    selected = random.sample(FALLBACK_UPGRADES, min(3, len(FALLBACK_UPGRADES)))
+    return jsonify({
+        "source": "fallback",
+        "upgrades": selected
+    }), 200
 
 @app.route("/api/generate-boss-event", methods=["POST"])
 def generate_boss_event():
     """
     Generates a dynamic AI boss encounter with custom title, lore transmission, and modifiers.
+    Prioritizes Gemini, then OpenAI, then fallback.
     """
     data = request.get_json(silent=True) or {}
     survival_time = data.get("survival_time", 60)
     level = data.get("level", 1)
-    api_key = os.getenv("OPENAI_API_KEY")
+    gemini_key = os.getenv("GEMINI_API_KEY")
+    openai_key = os.getenv("OPENAI_API_KEY")
 
-    if not api_key:
-        import random
-        chosen = random.choice(FALLBACK_BOSS_EVENTS)
-        return jsonify({
-            "source": "fallback",
-            "event": chosen
-        }), 200
+    # 1. Try Gemini
+    if gemini_key:
+        try:
+            from google import genai
+            from google.genai import types
 
-    try:
-        from openai import OpenAI
-        client = OpenAI(api_key=api_key)
-        model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+            client = genai.Client(api_key=gemini_key)
+            model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
-        prompt = (
-            f"You are the tactical AI director for a retro sci-fi bullet-heaven arcade game.\n"
-            f"The player has survived {int(survival_time)} seconds and is at Level {level}.\n"
-            f"Design a menacing cybernetic mini-boss dreadnought to spawn.\n"
-            f"Return a valid JSON object with the following fields:\n"
-            f"- 'boss_name': Capitalized futuristic boss name (e.g. 'ARCHON CYCLOPS')\n"
-            f"- 'title': 2-3 word military or AI classification (e.g. 'Subversion Protocol')\n"
-            f"- 'transmission': A 1-sentence menacing warning broadcast from the boss to the player\n"
-            f"- 'modifier': One of 'armored', 'swift', or 'radiant'\n"
-            f"- 'stats': Object with 'health_mult' (3.5 to 5.5), 'speed_mult' (0.8 to 1.3), 'damage_mult' (1.5 to 2.2)\n"
-            f"- 'color': A hex color code (e.g. '#ff0055', '#ffe600', '#a855f7', '#00f0ff')"
-        )
+            prompt = (
+                f"You are the tactical AI director for a retro sci-fi bullet-heaven arcade game.\n"
+                f"The player has survived {int(survival_time)} seconds and is at Level {level}.\n"
+                f"Design a menacing cybernetic mini-boss dreadnought to spawn.\n"
+                f"Return a valid JSON object with the following fields:\n"
+                f"- 'boss_name': Capitalized futuristic boss name (e.g. 'ARCHON CYCLOPS')\n"
+                f"- 'title': 2-3 word military or AI classification (e.g. 'Subversion Protocol')\n"
+                f"- 'transmission': A 1-sentence menacing warning broadcast from the boss to the player\n"
+                f"- 'modifier': One of 'armored', 'swift', or 'radiant'\n"
+                f"- 'stats': Object with 'health_mult' (3.5 to 5.5), 'speed_mult' (0.8 to 1.3), 'damage_mult' (1.5 to 2.2)\n"
+                f"- 'color': A hex color code (e.g. '#ff0055', '#ffe600', '#a855f7', '#00f0ff')"
+            )
 
-        response = client.chat.completions.create(
-            model=model,
-            response_format={"type": "json_object"},
-            messages=[
-                {"role": "system", "content": "You are a sci-fi game narrative director. Respond only in valid JSON."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.85,
-            max_tokens=300
-        )
+            response = client.models.generate_content(
+                model=model,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    temperature=0.85,
+                    max_output_tokens=350
+                )
+            )
 
-        boss_event = json.loads(response.choices[0].message.content.strip())
-        return jsonify({
-            "source": "openai",
-            "model": model,
-            "event": boss_event
-        }), 200
+            boss_event = json.loads(response.text.strip())
+            return jsonify({
+                "source": "gemini",
+                "model": model,
+                "event": boss_event
+            }), 200
+        except Exception as e:
+            logging.warning(f"Gemini boss generation failed: {e}. Checking secondary provider...")
 
-    except Exception as e:
-        logging.warning(f"AI boss generation failed: {e}. Using fallback boss.")
-        import random
-        chosen = random.choice(FALLBACK_BOSS_EVENTS)
-        return jsonify({
-            "source": "fallback",
-            "error": str(e),
-            "event": chosen
-        }), 200
+    # 2. Try OpenAI
+    if openai_key:
+        try:
+            from openai import OpenAI
+            client = OpenAI(api_key=openai_key)
+            model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+
+            prompt = (
+                f"You are the tactical AI director for a retro sci-fi bullet-heaven arcade game.\n"
+                f"The player has survived {int(survival_time)} seconds and is at Level {level}.\n"
+                f"Design a menacing cybernetic mini-boss dreadnought to spawn.\n"
+                f"Return a valid JSON object with the following fields:\n"
+                f"- 'boss_name': Capitalized futuristic boss name (e.g. 'ARCHON CYCLOPS')\n"
+                f"- 'title': 2-3 word military or AI classification (e.g. 'Subversion Protocol')\n"
+                f"- 'transmission': A 1-sentence menacing warning broadcast from the boss to the player\n"
+                f"- 'modifier': One of 'armored', 'swift', or 'radiant'\n"
+                f"- 'stats': Object with 'health_mult' (3.5 to 5.5), 'speed_mult' (0.8 to 1.3), 'damage_mult' (1.5 to 2.2)\n"
+                f"- 'color': A hex color code (e.g. '#ff0055', '#ffe600', '#a855f7', '#00f0ff')"
+            )
+
+            response = client.chat.completions.create(
+                model=model,
+                response_format={"type": "json_object"},
+                messages=[
+                    {"role": "system", "content": "You are a sci-fi game narrative director. Respond only in valid JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.85,
+                max_tokens=300
+            )
+
+            boss_event = json.loads(response.choices[0].message.content.strip())
+            return jsonify({
+                "source": "openai",
+                "model": model,
+                "event": boss_event
+            }), 200
+        except Exception as e:
+            logging.warning(f"OpenAI boss generation failed: {e}. Using fallback boss.")
+
+    # 3. Fallback Boss
+    import random
+    chosen = random.choice(FALLBACK_BOSS_EVENTS)
+    return jsonify({
+        "source": "fallback",
+        "event": chosen
+    }), 200
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))

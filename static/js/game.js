@@ -847,8 +847,10 @@ async function triggerLevelUp() {
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const data = await response.json();
 
-    if (data.source === 'openai') {
-      aiBadge.textContent = `🤖 AI GENERATED (${(data.model || 'gpt-4o-mini').toUpperCase()})`;
+    if (data.source === 'gemini') {
+      aiBadge.textContent = `🤖 GEMINI AI (${(data.model || 'gemini-2.5-flash').toUpperCase()})`;
+    } else if (data.source === 'openai') {
+      aiBadge.textContent = `🤖 OPENAI (${(data.model || 'gpt-4o-mini').toUpperCase()})`;
     } else {
       aiBadge.textContent = '⚡ TACTICAL FALLBACK PROTOCOL';
     }
