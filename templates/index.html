@@ -58,6 +58,7 @@
           <span id="kills-display" class="hud-val">0</span>
         </div>
         <div class="system-controls">
+          <button id="pause-btn" class="btn-icon" title="Pause / Resume Game [P / ESC]">⏸️</button>
           <button id="leaderboard-btn" class="btn-icon" title="Global All-Time Leaderboard">🏆</button>
           <button id="audio-toggle" class="btn-icon" title="Toggle Synthesizer Audio">🔊</button>
           <div id="ai-status-indicator" class="ai-status-pill checking" title="AI Subsystem Status">
@@ -82,7 +83,8 @@
 
       <!-- Controls hint banner -->
       <div class="controls-hint">
-        <span>[W][A][S][D] or [ARROWS] Move</span> &bull;
+        <span>[W][A][S][D] Move</span> &bull;
+        <span>[P] or [ESC] Pause</span> &bull;
         <span>Blaster Auto-Targets</span> &bull;
         <span>Collect Blue Nanite Orbs</span>
       </div>
@@ -201,8 +203,41 @@
         </div>
       </div>
     </div>
+
+    <!-- Pause Modal -->
+    <div id="pause-modal" class="modal-overlay hidden">
+      <div class="modal-content pause-modal-card">
+        <div class="modal-header">
+          <div class="glitch-title" data-text="SIMULATION PAUSED">SIMULATION PAUSED</div>
+          <p class="modal-subtitle">Tactical freeze engaged &bull; Defense arrays on standby</p>
+        </div>
+
+        <div class="pause-stats-summary">
+          <div class="pause-stat">
+            <span class="pause-stat-label">SURVIVED</span>
+            <span id="pause-time-val" class="pause-stat-val">00:00</span>
+          </div>
+          <div class="pause-stat">
+            <span class="pause-stat-label">SCORE</span>
+            <span id="pause-score-val" class="pause-stat-val">0</span>
+          </div>
+          <div class="pause-stat">
+            <span class="pause-stat-label">KILLS</span>
+            <span id="pause-kills-val" class="pause-stat-val">0</span>
+          </div>
+          <div class="pause-stat">
+            <span class="pause-stat-label">LEVEL</span>
+            <span id="pause-level-val" class="pause-stat-val">1</span>
+          </div>
+        </div>
+
+        <div class="pause-actions">
+          <button id="resume-btn" class="btn-restart" style="width: 100%; margin-top: 4px;">▶ RESUME SIMULATION [ESC / P]</button>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <script src="/static/js/game.js?v=20260909_14"></script>
+  <script src="/static/js/game.js?v=20260909_15"></script>
 </body>
 </html>

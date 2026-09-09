@@ -95,6 +95,15 @@ const leaderboardPilotInput = document.getElementById('leaderboard-pilot-input')
 const leaderboardPilotSaveBtn = document.getElementById('leaderboard-pilot-save-btn');
 const pilotSaveStatus = document.getElementById('pilot-save-status');
 
+// Tactical Pause DOM Elements
+const pauseBtn = document.getElementById('pause-btn');
+const pauseModal = document.getElementById('pause-modal');
+const resumeBtn = document.getElementById('resume-btn');
+const pauseTimeVal = document.getElementById('pause-time-val');
+const pauseScoreVal = document.getElementById('pause-score-val');
+const pauseKillsVal = document.getElementById('pause-kills-val');
+const pauseLevelVal = document.getElementById('pause-level-val');
+
 const CALLSIGN_STORAGE_KEY = 'cyber_survivor_callsign';
 
 // --- Helper Functions ---
@@ -385,6 +394,22 @@ const keys = {
 };
 
 window.addEventListener('keydown', (e) => {
+  if (e.code === 'KeyP' || e.code === 'Escape') {
+    const active = document.activeElement;
+    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
+      return;
+    }
+    // If leaderboard modal is open, ESC closes it
+    if (leaderboardModal && !leaderboardModal.classList.contains('hidden')) {
+      closeLeaderboardModal();
+      return;
+    }
+    togglePause();
+    return;
+  }
+
+  if (game.state === 'PAUSED') return;
+
   if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.w = true;
   if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.a = true;
   if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.s = true;
@@ -1532,6 +1557,12 @@ function initGame() {
   eventBanner.classList.add('hidden');
   levelUpModal.classList.add('hidden');
   if (bossRewardModal) bossRewardModal.classList.add('hidden');
+  if (pauseModal) pauseModal.classList.add('hidden');
+  if (pauseBtn) {
+    pauseBtn.textContent = '⏸️';
+    pauseBtn.classList.remove('active');
+    pauseBtn.setAttribute('title', 'Pause Game [P / ESC]');
+  }
   gameOverModal.classList.add('hidden');
 
   updateHUD();
@@ -1886,6 +1917,12 @@ function applyUpgrade(upgrade) {
 
 function triggerGameOver() {
   game.state = 'GAME_OVER';
+  if (pauseModal) pauseModal.classList.add('hidden');
+  if (pauseBtn) {
+    pauseBtn.textContent = '⏸️';
+    pauseBtn.classList.remove('active');
+    pauseBtn.setAttribute('title', 'Game Over');
+  }
   if (game.score > playerTopScore) {
     playerTopScore = game.score;
     try {
@@ -2013,8 +2050,57 @@ async function fetchAndRenderLeaderboard() {
   }
 }
 
+let wasPlayingBeforeLeaderboard = false;
+
+function togglePause(forcePause = null) {
+  // Disallow pausing in game over or during level up modal
+  if (game.state === 'GAME_OVER' || game.state === 'LEVEL_UP') return;
+
+  const shouldPause = forcePause !== null ? forcePause : (game.state === 'PLAYING');
+
+  if (shouldPause) {
+    if (game.state !== 'PAUSED') {
+      game.state = 'PAUSED';
+      if (pauseTimeVal) pauseTimeVal.textContent = timerDisplay ? timerDisplay.textContent : '00:00';
+      if (pauseScoreVal) pauseScoreVal.textContent = game.score;
+      if (pauseKillsVal) pauseKillsVal.textContent = game.kills;
+      if (pauseLevelVal && game.player) pauseLevelVal.textContent = game.player.level;
+      if (pauseModal) pauseModal.classList.remove('hidden');
+      if (pauseBtn) {
+        pauseBtn.textContent = '▶️';
+        pauseBtn.classList.add('active');
+        pauseBtn.setAttribute('title', 'Resume Game [P / ESC]');
+      }
+      keys.w = keys.a = keys.s = keys.d = false;
+      keys.ArrowUp = keys.ArrowDown = keys.ArrowLeft = keys.ArrowRight = false;
+    }
+  } else {
+    if (game.state === 'PAUSED') {
+      if (pauseModal) pauseModal.classList.add('hidden');
+      game.state = 'PLAYING';
+      game.lastTimestamp = performance.now();
+      if (pauseBtn) {
+        pauseBtn.textContent = '⏸️';
+        pauseBtn.classList.remove('active');
+        pauseBtn.setAttribute('title', 'Pause Game [P / ESC]');
+      }
+    }
+  }
+}
+
 function openLeaderboardModal() {
   if (leaderboardModal) {
+    if (game.state === 'PLAYING') {
+      wasPlayingBeforeLeaderboard = true;
+      game.state = 'PAUSED';
+      if (pauseBtn) {
+        pauseBtn.textContent = '▶️';
+        pauseBtn.classList.add('active');
+        pauseBtn.setAttribute('title', 'Resume Game [P / ESC]');
+      }
+      keys.w = keys.a = keys.s = keys.d = false;
+      keys.ArrowUp = keys.ArrowDown = keys.ArrowLeft = keys.ArrowRight = false;
+    }
     leaderboardModal.classList.remove('hidden');
     if (leaderboardPilotInput) leaderboardPilotInput.value = getCurrentPilotName();
     if (pilotSaveStatus) pilotSaveStatus.textContent = '';
@@ -2025,6 +2111,16 @@ function openLeaderboardModal() {
 function closeLeaderboardModal() {
   if (leaderboardModal) {
     leaderboardModal.classList.add('hidden');
+    if (wasPlayingBeforeLeaderboard) {
+      wasPlayingBeforeLeaderboard = false;
+      game.state = 'PLAYING';
+      game.lastTimestamp = performance.now();
+      if (pauseBtn) {
+        pauseBtn.textContent = '⏸️';
+        pauseBtn.classList.remove('active');
+        pauseBtn.setAttribute('title', 'Pause Game [P / ESC]');
+      }
+    }
   }
 }
 
@@ -2122,6 +2218,10 @@ if (callsignInput) {
     if (e.key === 'Enter') submitPlayerScore();
   });
 }
+
+// Tactical Pause button click listeners
+if (pauseBtn) pauseBtn.addEventListener('click', () => togglePause());
+if (resumeBtn) resumeBtn.addEventListener('click', () => togglePause(false));
 
 // Initialize Pilot Name in HUD and input fields
 setPilotName(getCurrentPilotName());
