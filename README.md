@@ -122,7 +122,7 @@ Open the `game_url` in your browser to play your live game on AWS!
 
 ### Inspecting the Server (Optional SSH):
 ```bash
-ssh -i ~/.ssh/devops.school.level3.kalle-admin.pem ubuntu@<PUBLIC_IP>
+ssh -i ~/.ssh/id_rsa_level3 ubuntu@<PUBLIC_IP>
 
 # Check application service status
 sudo systemctl status web_spel

@@ -15,5 +15,5 @@ output "game_url" {
 
 output "ssh_command" {
   description = "Command to SSH into your server"
-  value       = "ssh -i <path-to-${var.key_name}.pem> ubuntu@${aws_instance.web_spel_server.public_ip}"
+  value       = "ssh -i ~/.ssh/id_rsa_level3 ubuntu@${aws_instance.web_spel_server.public_ip}"
 }
