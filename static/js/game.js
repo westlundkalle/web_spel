@@ -8,16 +8,18 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-// World Dimensions (2x Arena Expansion: 1920x1280 Virtual Arena with 960x640 Viewport)
+// World Dimensions (2x Arena Expansion: 1920x1280 Virtual Arena)
 const WORLD_WIDTH = 1920;
 const WORLD_HEIGHT = 1280;
 
-// Camera System (Follows player smoothly with boundary clamping)
+// Camera System (+50% Visible Area Expansion: 1.5x World Area visible via Camera Zoom)
+const CAMERA_ZOOM = 1 / Math.sqrt(1.5); // ~0.8165 gives exactly 1.5x visible area
 const camera = {
   x: 0,
   y: 0,
-  width: canvas.width,
-  height: canvas.height,
+  zoom: CAMERA_ZOOM,
+  width: canvas.width / CAMERA_ZOOM,
+  height: canvas.height / CAMERA_ZOOM,
   update(target) {
     if (!target) return;
     const targetX = target.x - this.width / 2;
@@ -31,12 +33,22 @@ const camera = {
   }
 };
 
+// Top Score Persistence (local to this player)
+const TOP_SCORE_KEY = 'cyber_survivor_top_score';
+let playerTopScore = 0;
+try {
+  playerTopScore = parseInt(localStorage.getItem(TOP_SCORE_KEY), 10) || 0;
+} catch (e) {
+  playerTopScore = 0;
+}
+
 // UI DOM Elements
 const healthFill = document.getElementById('health-bar-fill');
 const healthText = document.getElementById('health-text');
 const xpFill = document.getElementById('xp-bar-fill');
 const playerLevelDisplay = document.getElementById('player-level');
 const timerDisplay = document.getElementById('timer-display');
+const topScoreDisplay = document.getElementById('top-score-display');
 const scoreDisplay = document.getElementById('score-display');
 const killsDisplay = document.getElementById('kills-display');
 
@@ -62,6 +74,7 @@ const finalTimeDisplay = document.getElementById('final-time');
 const finalLevelDisplay = document.getElementById('final-level');
 const finalKillsDisplay = document.getElementById('final-kills');
 const finalScoreDisplay = document.getElementById('final-score');
+const finalTopScoreDisplay = document.getElementById('final-top-score');
 const restartBtn = document.getElementById('restart-btn');
 
 // --- Helper Functions ---
@@ -375,7 +388,7 @@ class Player {
     // Combat timers
     this.baseCooldown = 0.45;
     this.attackTimer = 0;
-    this.targetingRange = 480;
+    this.targetingRange = 560;
     
     // Invulnerability frames
     this.invulnerableTimer = 0;
@@ -1488,6 +1501,14 @@ function updateHUD() {
   const secs = Math.floor(game.survivalTime % 60);
   timerDisplay.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 
+  // Top Score real-time check & persistence
+  if (game.score > playerTopScore) {
+    playerTopScore = game.score;
+    try {
+      localStorage.setItem(TOP_SCORE_KEY, playerTopScore.toString());
+    } catch (e) {}
+  }
+  if (topScoreDisplay) topScoreDisplay.textContent = playerTopScore;
   scoreDisplay.textContent = game.score;
   killsDisplay.textContent = game.kills;
 }
@@ -1731,10 +1752,17 @@ function applyUpgrade(upgrade) {
 
 function triggerGameOver() {
   game.state = 'GAME_OVER';
+  if (game.score > playerTopScore) {
+    playerTopScore = game.score;
+    try {
+      localStorage.setItem(TOP_SCORE_KEY, playerTopScore.toString());
+    } catch (e) {}
+  }
   finalTimeDisplay.textContent = timerDisplay.textContent;
   finalLevelDisplay.textContent = game.player.level;
   finalKillsDisplay.textContent = game.kills;
   finalScoreDisplay.textContent = game.score;
+  if (finalTopScoreDisplay) finalTopScoreDisplay.textContent = playerTopScore;
   gameOverModal.classList.remove('hidden');
 }
 
@@ -1968,8 +1996,9 @@ function gameLoop(timestamp) {
   ctx.fillStyle = '#070913';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Apply Camera Translation
+  // Apply Camera Zoom (+50% Visible Area) & Translation
   ctx.save();
+  ctx.scale(camera.zoom, camera.zoom);
   ctx.translate(-Math.round(camera.x), -Math.round(camera.y));
 
   // Starfield grid covering 1920x1280
