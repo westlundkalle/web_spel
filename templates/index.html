@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CYBER SURVIVOR: AI Bullet Heaven</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=20260909_9">
+  <link rel="stylesheet" href="/static/css/style.css?v=20260909_10">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
@@ -29,6 +29,11 @@
             <div id="health-bar-fill" class="health-bar-fill" style="width: 100%;"></div>
             <span id="health-text" class="health-text">100 / 100</span>
           </div>
+        </div>
+        <div id="hud-pilot-pill" class="pilot-hud-pill" title="Click to choose your Pilot Name">
+          <span class="pilot-hud-label">PILOT</span>
+          <span id="hud-pilot-display" class="pilot-hud-val">PILOT</span>
+          <span class="pilot-hud-edit">✎</span>
         </div>
       </div>
 
@@ -144,10 +149,10 @@
 
         <!-- Callsign Transmission to Global Leaderboard -->
         <div id="callsign-submit-container" class="callsign-submit-container">
-          <div class="callsign-label">TRANSMIT TO ALL-TIME LEADERBOARD</div>
+          <div class="callsign-label">SUBMIT SCORE TO ALL-TIME LEADERBOARD</div>
           <div class="callsign-input-group">
-            <input id="callsign-input" type="text" maxlength="16" placeholder="ENTER CALLSIGN (e.g. CYBER-01)" autocomplete="off" />
-            <button id="callsign-submit-btn" class="btn-submit-score">TRANSMIT</button>
+            <input id="callsign-input" type="text" maxlength="16" placeholder="Choose your name..." autocomplete="off" />
+            <button id="callsign-submit-btn" class="btn-submit-score">SUBMIT SCORE</button>
           </div>
           <div id="callsign-status" class="callsign-status"></div>
         </div>
@@ -174,6 +179,18 @@
           <button id="leaderboard-close-btn" class="btn-icon btn-close" title="Close">✕</button>
         </div>
 
+        <!-- Pilot Name Customization in Leaderboard -->
+        <div class="pilot-name-config">
+          <div class="pilot-config-header">
+            <span class="pilot-config-label">YOUR PILOT NAME:</span>
+            <span id="pilot-save-status" class="pilot-save-status"></span>
+          </div>
+          <div class="pilot-config-input-group">
+            <input id="leaderboard-pilot-input" type="text" maxlength="16" placeholder="Choose your name..." autocomplete="off" />
+            <button id="leaderboard-pilot-save-btn" class="btn-submit-score" style="padding: 6px 14px; font-size: 10px;">SAVE NAME</button>
+          </div>
+        </div>
+
         <div id="leaderboard-table-container" class="leaderboard-table-container">
           <div class="leaderboard-loading">📡 RETRIEVING ARCHIVED CALLSIGNS...</div>
         </div>
@@ -186,6 +203,6 @@
     </div>
   </div>
 
-  <script src="/static/js/game.js?v=20260909_9"></script>
+  <script src="/static/js/game.js?v=20260909_10"></script>
 </body>
 </html>

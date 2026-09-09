@@ -89,6 +89,12 @@ const callsignInput = document.getElementById('callsign-input');
 const callsignSubmitBtn = document.getElementById('callsign-submit-btn');
 const callsignStatus = document.getElementById('callsign-status');
 
+const hudPilotPill = document.getElementById('hud-pilot-pill');
+const hudPilotDisplay = document.getElementById('hud-pilot-display');
+const leaderboardPilotInput = document.getElementById('leaderboard-pilot-input');
+const leaderboardPilotSaveBtn = document.getElementById('leaderboard-pilot-save-btn');
+const pilotSaveStatus = document.getElementById('pilot-save-status');
+
 const CALLSIGN_STORAGE_KEY = 'cyber_survivor_callsign';
 
 // --- Helper Functions ---
@@ -1783,15 +1789,14 @@ function triggerGameOver() {
   finalScoreDisplay.textContent = game.score;
   if (finalTopScoreDisplay) finalTopScoreDisplay.textContent = playerTopScore;
 
-  // Prepare Callsign Submission
+  // Prepare Callsign / Pilot Name Submission
+  const myName = getCurrentPilotName();
   if (callsignInput) {
-    let savedCallsign = '';
-    try { savedCallsign = localStorage.getItem(CALLSIGN_STORAGE_KEY) || ''; } catch (e) {}
-    callsignInput.value = savedCallsign || `PILOT-${Math.floor(100 + Math.random() * 900)}`;
+    callsignInput.value = myName;
   }
   if (callsignSubmitBtn) {
     callsignSubmitBtn.disabled = false;
-    callsignSubmitBtn.textContent = 'TRANSMIT';
+    callsignSubmitBtn.textContent = 'SUBMIT SCORE';
   }
   if (callsignStatus) {
     callsignStatus.style.color = 'var(--accent-green)';
@@ -1805,7 +1810,28 @@ restartBtn.addEventListener('click', () => {
   initGame();
 });
 
-// --- Global All-Time Leaderboard Logic ---
+// --- Pilot Name & Global Leaderboard Logic ---
+function getCurrentPilotName() {
+  try {
+    return localStorage.getItem(CALLSIGN_STORAGE_KEY) || 'Pilot';
+  } catch (e) {
+    return 'Pilot';
+  }
+}
+
+function setPilotName(name) {
+  const clean = (name || '').trim();
+  const finalName = clean || 'Pilot';
+  try {
+    localStorage.setItem(CALLSIGN_STORAGE_KEY, finalName);
+  } catch (e) {}
+
+  if (hudPilotDisplay) hudPilotDisplay.textContent = finalName;
+  if (callsignInput) callsignInput.value = finalName;
+  if (leaderboardPilotInput) leaderboardPilotInput.value = finalName;
+  return finalName;
+}
+
 function escapeHtml(str) {
   const div = document.createElement('div');
   div.textContent = str;
@@ -1826,6 +1852,8 @@ async function fetchAndRenderLeaderboard() {
       leaderboardTableContainer.innerHTML = '<div class="leaderboard-empty">NO MISSION RECORDS FOUND. BE THE FIRST PILOT ON THE BOARD!</div>';
       return;
     }
+
+    const currentPilot = getCurrentPilotName().toLowerCase();
 
     let html = `
       <table class="leaderboard-table">
@@ -1852,10 +1880,14 @@ async function fetchAndRenderLeaderboard() {
       const secs = Math.floor(entry.survival_time % 60);
       const timeStr = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 
+      const isMe = (entry.player_name || '').toLowerCase() === currentPilot;
+      const rowClass = isMe ? ' class="my-rank-row"' : '';
+      const youBadge = isMe ? '<span class="you-tag">YOU</span>' : '';
+
       html += `
-        <tr>
+        <tr${rowClass}>
           <td class="rank-col">${rankBadge}</td>
-          <td class="pilot-col">${escapeHtml(entry.player_name)}</td>
+          <td class="pilot-col">${escapeHtml(entry.player_name)}${youBadge}</td>
           <td class="score-col">${Number(entry.score).toLocaleString()}</td>
           <td>${timeStr}</td>
           <td>${entry.level}</td>
@@ -1875,6 +1907,8 @@ async function fetchAndRenderLeaderboard() {
 function openLeaderboardModal() {
   if (leaderboardModal) {
     leaderboardModal.classList.remove('hidden');
+    if (leaderboardPilotInput) leaderboardPilotInput.value = getCurrentPilotName();
+    if (pilotSaveStatus) pilotSaveStatus.textContent = '';
     fetchAndRenderLeaderboard();
   }
 }
@@ -1888,13 +1922,8 @@ function closeLeaderboardModal() {
 async function submitPlayerScore() {
   if (!callsignInput || !callsignSubmitBtn) return;
 
-  const rawName = callsignInput.value.trim().toUpperCase();
-  const pilotName = rawName || 'PILOT-ANON';
-
-  // Save callsign preference locally
-  try {
-    localStorage.setItem(CALLSIGN_STORAGE_KEY, pilotName);
-  } catch (e) {}
+  const rawName = (callsignInput.value || '').trim();
+  const pilotName = setPilotName(rawName);
 
   callsignSubmitBtn.disabled = true;
   callsignSubmitBtn.textContent = 'TRANSMITTING...';
@@ -1937,6 +1966,35 @@ async function submitPlayerScore() {
   }
 }
 
+if (hudPilotPill) {
+  hudPilotPill.addEventListener('click', () => {
+    openLeaderboardModal();
+    if (leaderboardPilotInput) {
+      setTimeout(() => leaderboardPilotInput.focus(), 60);
+    }
+  });
+}
+
+if (leaderboardPilotSaveBtn) {
+  leaderboardPilotSaveBtn.addEventListener('click', () => {
+    const chosen = leaderboardPilotInput ? leaderboardPilotInput.value : '';
+    const saved = setPilotName(chosen);
+    if (pilotSaveStatus) {
+      pilotSaveStatus.textContent = `✅ Saved as "${saved}"`;
+      setTimeout(() => { if (pilotSaveStatus) pilotSaveStatus.textContent = ''; }, 3000);
+    }
+    fetchAndRenderLeaderboard();
+  });
+}
+
+if (leaderboardPilotInput) {
+  leaderboardPilotInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && leaderboardPilotSaveBtn) {
+      leaderboardPilotSaveBtn.click();
+    }
+  });
+}
+
 if (leaderboardBtn) leaderboardBtn.addEventListener('click', openLeaderboardModal);
 if (viewLeaderboardFromGameOver) viewLeaderboardFromGameOver.addEventListener('click', openLeaderboardModal);
 if (leaderboardCloseBtn) leaderboardCloseBtn.addEventListener('click', closeLeaderboardModal);
@@ -1948,6 +2006,9 @@ if (callsignInput) {
     if (e.key === 'Enter') submitPlayerScore();
   });
 }
+
+// Initialize Pilot Name in HUD and input fields
+setPilotName(getCurrentPilotName());
 
 // --- Radar Minimap & World Boundary Rendering ---
 function drawArenaBorders(ctx) {
