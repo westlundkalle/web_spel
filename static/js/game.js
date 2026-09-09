@@ -1,12 +1,35 @@
 /**
  * CYBER SURVIVOR: AI Bullet Heaven
- * Pure HTML5 Canvas + JavaScript Game Engine with Web Audio Synthesizer,
- * Geometric Enemy Ships, Legendary Boss Artifact Evolutions & Google Gemini AI.
+ * Pure HTML5 Canvas + JavaScript Game Engine with 2x Arena Camera Viewport,
+ * 5-Tier Boss Progression Enemies, Legendary Boss Artifact Evolutions & Google Gemini AI.
  */
 
 // Canvas & Rendering Context
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
+
+// World Dimensions (2x Arena Expansion: 1920x1280 Virtual Arena with 960x640 Viewport)
+const WORLD_WIDTH = 1920;
+const WORLD_HEIGHT = 1280;
+
+// Camera System (Follows player smoothly with boundary clamping)
+const camera = {
+  x: 0,
+  y: 0,
+  width: canvas.width,
+  height: canvas.height,
+  update(target) {
+    if (!target) return;
+    const targetX = target.x - this.width / 2;
+    const targetY = target.y - this.height / 2;
+    // Smooth lerp follow
+    this.x += (targetX - this.x) * 0.14;
+    this.y += (targetY - this.y) * 0.14;
+    // Clamp to world
+    this.x = Math.max(0, Math.min(WORLD_WIDTH - this.width, this.x));
+    this.y = Math.max(0, Math.min(WORLD_HEIGHT - this.height, this.y));
+  }
+};
 
 // UI DOM Elements
 const healthFill = document.getElementById('health-bar-fill');
@@ -43,12 +66,18 @@ const restartBtn = document.getElementById('restart-btn');
 
 // --- Helper Functions ---
 function parseStatNumber(val) {
+  if (val === undefined || val === null) return 0;
   if (typeof val === 'number') return isNaN(val) ? 0 : val;
   if (typeof val === 'string') {
-    const cleaned = val.replace('%', '').replace('+', '').trim();
+    const isPercent = val.includes('%');
+    const cleaned = val.replace(/[^0-9.-]/g, '');
     const num = parseFloat(cleaned);
     if (isNaN(num)) return 0;
-    return val.includes('%') ? num / 100 : num;
+    return isPercent ? num / 100 : num;
+  }
+  if (typeof val === 'object') {
+    if (val.value !== undefined) return parseStatNumber(val.value);
+    if (val.mult !== undefined) return parseStatNumber(val.mult);
   }
   return 0;
 }
@@ -325,11 +354,11 @@ class Player {
     this.x = x;
     this.y = y;
     this.radius = 16;
-    this.baseSpeed = 220; // pixels per second
+    this.baseSpeed = 225;
     
     this.maxHealth = 100;
     this.health = 100;
-    this.hpRegen = 0; // HP per second
+    this.hpRegen = 0;
     
     this.level = 1;
     this.xp = 0;
@@ -340,13 +369,13 @@ class Player {
     this.attackSpeedMult = 1.0;
     this.projectileCount = 1;
     this.moveSpeedMult = 1.0;
-    this.baseMagnetRadius = 80;
+    this.baseMagnetRadius = 85;
     this.magnetRadiusMult = 1.0;
 
     // Combat timers
-    this.baseCooldown = 0.45; // seconds per volley
+    this.baseCooldown = 0.45;
     this.attackTimer = 0;
-    this.targetingRange = 460;
+    this.targetingRange = 480;
     
     // Invulnerability frames
     this.invulnerableTimer = 0;
@@ -382,7 +411,6 @@ class Player {
     if (keys.a || keys.ArrowLeft) dx -= 1;
     if (keys.d || keys.ArrowRight) dx += 1;
 
-    // Normalize diagonal velocity
     if (dx !== 0 && dy !== 0) {
       dx *= 0.7071;
       dy *= 0.7071;
@@ -391,9 +419,9 @@ class Player {
     this.x += dx * this.speed * dt;
     this.y += dy * this.speed * dt;
 
-    // Keep within canvas bounds
-    this.x = Math.max(this.radius, Math.min(canvas.width - this.radius, this.x));
-    this.y = Math.max(this.radius, Math.min(canvas.height - this.radius, this.y));
+    // Keep within 1920x1280 World arena bounds
+    this.x = Math.max(this.radius, Math.min(WORLD_WIDTH - this.radius, this.x));
+    this.y = Math.max(this.radius, Math.min(WORLD_HEIGHT - this.radius, this.y));
 
     // Passive regeneration
     if (this.hpRegen > 0 && this.health < this.maxHealth) {
@@ -422,7 +450,6 @@ class Player {
         const a = this.orbitalAngle + (i * (Math.PI * 2 / this.orbitalCount));
         const ox = this.x + Math.cos(a) * orbRadius;
         const oy = this.y + Math.sin(a) * orbRadius;
-        // Collision check with enemies
         for (const e of enemies) {
           if (e.markedForDeletion) continue;
           if (Math.hypot(e.x - ox, e.y - oy) < e.radius + 10) {
@@ -453,7 +480,7 @@ class Player {
   }
 
   triggerChainLightning(enemies) {
-    const validTargets = enemies.filter(e => !e.markedForDeletion && Math.hypot(e.x - this.x, e.y - this.y) <= 360);
+    const validTargets = enemies.filter(e => !e.markedForDeletion && Math.hypot(e.x - this.x, e.y - this.y) <= 380);
     if (validTargets.length === 0) return;
 
     sounds.playLightning();
@@ -480,7 +507,7 @@ class Player {
     sounds.playNova();
     game.novaRings.push({
       x: this.x, y: this.y,
-      r: 0, maxR: 260,
+      r: 0, maxR: 280,
       lifespan: 0.45,
       alpha: 1.0
     });
@@ -488,7 +515,7 @@ class Player {
     for (const e of enemies) {
       if (e.markedForDeletion) continue;
       const dist = Math.hypot(e.x - this.x, e.y - this.y);
-      if (dist <= 260) {
+      if (dist <= 280) {
         e.slowTimer = 3.5;
         e.takeDamage(25 * Math.max(0.5, Number(this.damageMult) || 1.0));
         spawnExplosion(e.x, e.y, '#00f0ff', 4);
@@ -499,7 +526,6 @@ class Player {
   autoAttack(enemies, projectiles) {
     if (enemies.length === 0) return;
 
-    // Find closest non-deleted enemy
     let closestEnemy = null;
     let closestDist = Infinity;
 
@@ -565,16 +591,14 @@ class Player {
   draw(ctx) {
     ctx.save();
     
-    // Invulnerability flashing
     if (this.invulnerableTimer > 0 && Math.floor(Date.now() / 60) % 2 === 0) {
       ctx.globalAlpha = 0.4;
     }
 
-    // Outer Neon Glow
     ctx.shadowBlur = 14;
     ctx.shadowColor = '#00f0ff';
 
-    // Ship Hull (Neon Cyan Triangle)
+    // Ship Hull (Neon Cyan Core)
     ctx.fillStyle = '#00f0ff';
     ctx.beginPath();
     ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
@@ -623,7 +647,7 @@ class Projectile {
     this.damage = Math.max(1, Number(damage) || 25);
     this.pierceLeft = Number(pierce) || 0;
     this.hitEnemies = new Set();
-    this.lifespan = 1.6; // seconds
+    this.lifespan = 1.8;
     this.markedForDeletion = false;
   }
 
@@ -633,8 +657,8 @@ class Projectile {
     this.lifespan -= dt;
 
     if (this.lifespan <= 0 ||
-        this.x < -20 || this.x > canvas.width + 20 ||
-        this.y < -20 || this.y > canvas.height + 20) {
+        this.x < -40 || this.x > WORLD_WIDTH + 40 ||
+        this.y < -40 || this.y > WORLD_HEIGHT + 40) {
       this.markedForDeletion = true;
     }
   }
@@ -653,6 +677,53 @@ class Projectile {
   }
 }
 
+// Enemy Artillery Plasma Orb
+class EnemyPlasmaOrb {
+  constructor(x, y, angle) {
+    this.x = x;
+    this.y = y;
+    this.speed = 175;
+    this.vx = Math.cos(angle) * this.speed;
+    this.vy = Math.sin(angle) * this.speed;
+    this.radius = 7;
+    this.damage = 18;
+    this.lifespan = 5.0;
+    this.markedForDeletion = false;
+  }
+
+  update(dt, player) {
+    this.x += this.vx * dt;
+    this.y += this.vy * dt;
+    this.lifespan -= dt;
+
+    if (this.lifespan <= 0 || this.x < 0 || this.x > WORLD_WIDTH || this.y < 0 || this.y > WORLD_HEIGHT) {
+      this.markedForDeletion = true;
+    }
+
+    if (Math.hypot(player.x - this.x, player.y - this.y) < player.radius + this.radius) {
+      player.takeDamage(this.damage);
+      this.markedForDeletion = true;
+      spawnExplosion(this.x, this.y, '#39ff14', 8);
+    }
+  }
+
+  draw(ctx) {
+    ctx.save();
+    ctx.shadowBlur = 14;
+    ctx.shadowColor = '#39ff14';
+    ctx.fillStyle = '#39ff14';
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
 class Enemy {
   constructor(type, x, y, difficultyMultiplier, bossConfig = null) {
     this.type = type;
@@ -662,18 +733,19 @@ class Enemy {
     this.slowTimer = 0;
     this.markedForDeletion = false;
     this.isBoss = false;
+    this.splitsOnDeath = false;
 
     if (bossConfig) {
       this.isBoss = true;
       this.bossName = bossConfig.boss_name || 'TITAN LEVIATHAN';
-      this.radius = 36;
+      this.radius = 38;
       const stats = bossConfig.stats || {};
       this.speed = 70 * (stats.speed_mult || 1.0);
-      this.health = 450 * (stats.health_mult || 4.0);
+      this.health = 500 * (stats.health_mult || 4.0) * difficultyMultiplier;
       this.maxHealth = this.health;
       this.damage = 40 * (stats.damage_mult || 1.8);
       this.color = bossConfig.color || '#ff0055';
-      this.xpValue = 35;
+      this.xpValue = 40;
     } else if (type === 'swarmer') {
       this.radius = 12;
       this.speed = 140 * (1 + difficultyMultiplier * 0.05);
@@ -690,7 +762,7 @@ class Enemy {
       this.damage = 22;
       this.color = '#9d4edd';
       this.xpValue = 3;
-    } else { // dreadnought
+    } else if (type === 'dreadnought') {
       this.radius = 26;
       this.speed = 65 * (1 + difficultyMultiplier * 0.03);
       this.health = 160 * difficultyMultiplier;
@@ -698,17 +770,112 @@ class Enemy {
       this.damage = 38;
       this.color = '#ff9100';
       this.xpValue = 8;
+    } else if (type === 'viper') { // Unlocks after Boss 1 (Minute 1+)
+      this.radius = 14;
+      this.speed = 175 * (1 + difficultyMultiplier * 0.04);
+      this.health = 55 * difficultyMultiplier;
+      this.maxHealth = this.health;
+      this.damage = 20;
+      this.color = '#00f0ff';
+      this.xpValue = 4;
+      this.dashTimer = 2.0 + Math.random() * 1.5;
+      this.isDashing = false;
+      this.dashDuration = 0;
+    } else if (type === 'bombard') { // Unlocks after Boss 2 (Minute 2+)
+      this.radius = 22;
+      this.speed = 60 * (1 + difficultyMultiplier * 0.03);
+      this.health = 140 * difficultyMultiplier;
+      this.maxHealth = this.health;
+      this.damage = 25;
+      this.color = '#39ff14';
+      this.xpValue = 7;
+      this.shootCooldown = 3.2;
+      this.shootTimer = 1.2 + Math.random() * 2.0;
+    } else if (type === 'hydra') { // Unlocks after Boss 3 (Minute 3+)
+      this.radius = 24;
+      this.speed = 85 * (1 + difficultyMultiplier * 0.03);
+      this.health = 190 * difficultyMultiplier;
+      this.maxHealth = this.health;
+      this.damage = 32;
+      this.color = '#b5179e';
+      this.xpValue = 9;
+      this.splitsOnDeath = true;
+    } else if (type === 'hydra_spore') { // Spawned when Hydra dies
+      this.radius = 10;
+      this.speed = 155 * (1 + difficultyMultiplier * 0.04);
+      this.health = 35 * difficultyMultiplier;
+      this.maxHealth = this.health;
+      this.damage = 14;
+      this.color = '#e0aaff';
+      this.xpValue = 2;
+    } else if (type === 'phantom') { // Unlocks after Boss 4 (Minute 4+)
+      this.radius = 18;
+      this.speed = 100 * (1 + difficultyMultiplier * 0.03);
+      this.health = 160 * difficultyMultiplier;
+      this.maxHealth = this.health;
+      this.damage = 32;
+      this.color = '#ffd700';
+      this.xpValue = 10;
+      this.warpCooldown = 3.0;
+      this.warpTimer = 2.0 + Math.random() * 2.0;
+    } else if (type === 'devourer') { // Unlocks after Boss 5 (Minute 5+)
+      this.radius = 32;
+      this.speed = 55 * (1 + difficultyMultiplier * 0.02);
+      this.health = 460 * difficultyMultiplier;
+      this.maxHealth = this.health;
+      this.damage = 50;
+      this.color = '#e63946';
+      this.xpValue = 25;
     }
   }
 
   update(dt, player) {
-    // Calculate angle towards player
     this.angle = Math.atan2(player.y - this.y, player.x - this.x);
 
     let effectiveSpeed = this.speed;
     if (this.slowTimer > 0) {
       this.slowTimer -= dt;
       effectiveSpeed *= 0.55;
+    }
+
+    // Special behavior: Viper lightning dash
+    if (this.type === 'viper') {
+      if (this.isDashing) {
+        this.dashDuration -= dt;
+        effectiveSpeed *= 2.3;
+        spawnExplosion(this.x, this.y, '#00f0ff', 1);
+        if (this.dashDuration <= 0) this.isDashing = false;
+      } else {
+        this.dashTimer -= dt;
+        if (this.dashTimer <= 0) {
+          this.dashTimer = 2.8;
+          this.isDashing = true;
+          this.dashDuration = 0.5;
+        }
+      }
+    }
+
+    // Special behavior: Bombard artillery plasma fire
+    if (this.type === 'bombard') {
+      this.shootTimer -= dt;
+      if (this.shootTimer <= 0) {
+        this.shootTimer = this.shootCooldown;
+        const angleToPlayer = Math.atan2(player.y - this.y, player.x - this.x);
+        game.enemyProjectiles.push(new EnemyPlasmaOrb(this.x, this.y, angleToPlayer));
+      }
+    }
+
+    // Special behavior: Warp Phantom phase blink
+    if (this.type === 'phantom') {
+      this.warpTimer -= dt;
+      if (this.warpTimer <= 0) {
+        this.warpTimer = this.warpCooldown;
+        spawnExplosion(this.x, this.y, '#ffd700', 6);
+        const a = Math.atan2(player.y - this.y, player.x - this.x);
+        this.x += Math.cos(a) * 85;
+        this.y += Math.sin(a) * 85;
+        spawnExplosion(this.x, this.y, '#ffd700', 6);
+      }
     }
 
     this.x += Math.cos(this.angle) * effectiveSpeed * dt;
@@ -732,6 +899,12 @@ class Enemy {
       spawnExplosion(this.x, this.y, this.color, this.isBoss ? 45 : 12);
       game.kills += 1;
       game.score += this.xpValue * 25;
+
+      // Hydra splits into two spores upon death
+      if (this.splitsOnDeath) {
+        game.enemies.push(new Enemy('hydra_spore', this.x - 12, this.y - 12, 1.0));
+        game.enemies.push(new Enemy('hydra_spore', this.x + 12, this.y + 12, 1.0));
+      }
 
       // Vampiric health leech
       if (game.player && game.player.vampiricChance > 0 && Math.random() < game.player.vampiricChance) {
@@ -758,7 +931,6 @@ class Enemy {
     ctx.save();
     ctx.translate(this.x, this.y);
 
-    // Frost effect if slowed
     if (this.slowTimer > 0) {
       ctx.shadowBlur = 16;
       ctx.shadowColor = '#00f0ff';
@@ -770,11 +942,9 @@ class Enemy {
     }
 
     if (this.isBoss) {
-      // --- Boss Shape: Multi-Layered Octagonal Leviathan with Outer Spiked Shields ---
-      ctx.shadowBlur = 22;
+      ctx.shadowBlur = 24;
       ctx.shadowColor = this.color;
 
-      // Outer rotating spiked shield
       ctx.save();
       ctx.rotate(Date.now() / 350);
       ctx.strokeStyle = this.color;
@@ -793,7 +963,6 @@ class Enemy {
       ctx.stroke();
       ctx.restore();
 
-      // Main Armored Octagon Hull
       ctx.fillStyle = '#180e29';
       ctx.strokeStyle = this.color;
       ctx.lineWidth = 3;
@@ -809,7 +978,6 @@ class Enemy {
       ctx.fill();
       ctx.stroke();
 
-      // Pulsing Core Reactor
       const pulse = 1 + Math.sin(Date.now() / 120) * 0.2;
       ctx.fillStyle = this.color;
       ctx.beginPath();
@@ -821,7 +989,6 @@ class Enemy {
       ctx.arc(0, 0, this.radius * 0.2, 0, Math.PI * 2);
       ctx.fill();
 
-      // Boss Label
       ctx.fillStyle = '#fff';
       ctx.font = 'bold 11px Orbitron, sans-serif';
       ctx.textAlign = 'center';
@@ -830,28 +997,25 @@ class Enemy {
       ctx.fillText(this.bossName, 0, -this.radius - 16);
 
     } else if (this.type === 'swarmer') {
-      // --- Swarmer Shape: Sleek Delta-Wing Triangle rotated in movement direction ---
       ctx.rotate(this.angle);
       ctx.shadowBlur = 8;
       ctx.shadowColor = this.color;
       ctx.fillStyle = this.color;
 
       ctx.beginPath();
-      ctx.moveTo(this.radius * 1.3, 0); // nose pointing forward
-      ctx.lineTo(-this.radius, -this.radius * 0.85); // left wing
-      ctx.lineTo(-this.radius * 0.4, 0); // engine thruster indent
-      ctx.lineTo(-this.radius, this.radius * 0.85); // right wing
+      ctx.moveTo(this.radius * 1.3, 0);
+      ctx.lineTo(-this.radius, -this.radius * 0.85);
+      ctx.lineTo(-this.radius * 0.4, 0);
+      ctx.lineTo(-this.radius, this.radius * 0.85);
       ctx.closePath();
       ctx.fill();
 
-      // Thruster engine glow
       ctx.fillStyle = '#ffe600';
       ctx.beginPath();
       ctx.arc(-this.radius * 0.5, 0, 3, 0, Math.PI * 2);
       ctx.fill();
 
     } else if (this.type === 'striker') {
-      // --- Striker Shape: Fast 4-Pointed Diamond / Star Interceptor ---
       ctx.rotate(this.angle + (Date.now() / 180));
       ctx.shadowBlur = 10;
       ctx.shadowColor = this.color;
@@ -869,19 +1033,16 @@ class Enemy {
       ctx.closePath();
       ctx.fill();
 
-      // Striker Inner Core
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
       ctx.arc(0, 0, 3.5, 0, Math.PI * 2);
       ctx.fill();
 
-    } else {
-      // --- Dreadnought Shape: Heavy Armored 6-Sided Hexagon with Spinning Inner Plate ---
+    } else if (this.type === 'dreadnought') {
       ctx.shadowBlur = 12;
       ctx.shadowColor = this.color;
       ctx.fillStyle = this.color;
 
-      // Outer Hexagon
       ctx.beginPath();
       for (let i = 0; i < 6; i++) {
         const a = (i * Math.PI) / 3;
@@ -893,7 +1054,6 @@ class Enemy {
       ctx.closePath();
       ctx.fill();
 
-      // Inner Counter-Rotating Armored Plate
       ctx.rotate(Date.now() / 450);
       ctx.fillStyle = '#121926';
       ctx.beginPath();
@@ -904,11 +1064,131 @@ class Enemy {
       ctx.closePath();
       ctx.fill();
 
-      // Heavy Core Light
       ctx.fillStyle = '#ffe600';
       ctx.beginPath();
       ctx.arc(0, 0, this.radius * 0.28, 0, Math.PI * 2);
       ctx.fill();
+
+    } else if (this.type === 'viper') {
+      // Chevron Stealth Dart
+      ctx.rotate(this.angle);
+      ctx.shadowBlur = 12;
+      ctx.shadowColor = this.color;
+      ctx.fillStyle = this.color;
+
+      ctx.beginPath();
+      ctx.moveTo(this.radius * 1.4, 0);
+      ctx.lineTo(-this.radius, -this.radius);
+      ctx.lineTo(-this.radius * 0.4, 0);
+      ctx.lineTo(-this.radius, this.radius);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(0, 0, 3, 0, Math.PI * 2);
+      ctx.fill();
+
+    } else if (this.type === 'bombard') {
+      // Heavy Green Pentagon Artillery Drone
+      ctx.shadowBlur = 14;
+      ctx.shadowColor = this.color;
+      ctx.fillStyle = this.color;
+
+      ctx.beginPath();
+      for (let i = 0; i < 5; i++) {
+        const a = (i * Math.PI * 2) / 5 - Math.PI / 2;
+        const px = Math.cos(a) * this.radius;
+        const py = Math.sin(a) * this.radius;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = '#0a230a';
+      ctx.beginPath();
+      ctx.arc(0, 0, this.radius * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(0, 0, this.radius * 0.25, 0, Math.PI * 2);
+      ctx.fill();
+
+    } else if (this.type === 'hydra') {
+      // 8-Pointed Deep Violet Star
+      ctx.rotate(Date.now() / 400);
+      ctx.shadowBlur = 14;
+      ctx.shadowColor = this.color;
+      ctx.fillStyle = this.color;
+
+      ctx.beginPath();
+      for (let i = 0; i < 16; i++) {
+        const r = i % 2 === 0 ? this.radius * 1.25 : this.radius * 0.55;
+        const a = (i * Math.PI) / 8;
+        const px = Math.cos(a) * r;
+        const py = Math.sin(a) * r;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fill();
+
+    } else if (this.type === 'hydra_spore') {
+      ctx.rotate(this.angle);
+      ctx.shadowBlur = 8;
+      ctx.shadowColor = this.color;
+      ctx.fillStyle = this.color;
+
+      ctx.beginPath();
+      ctx.moveTo(this.radius * 1.3, 0);
+      ctx.lineTo(0, this.radius * 0.6);
+      ctx.lineTo(-this.radius, 0);
+      ctx.lineTo(0, -this.radius * 0.6);
+      ctx.closePath();
+      ctx.fill();
+
+    } else if (this.type === 'phantom') {
+      // Gold & Silver Phasing Rhombus
+      ctx.rotate(Date.now() / 250);
+      ctx.shadowBlur = 16;
+      ctx.shadowColor = this.color;
+      ctx.strokeStyle = '#ffd700';
+      ctx.lineWidth = 2.5;
+      ctx.strokeRect(-this.radius * 0.7, -this.radius * 0.7, this.radius * 1.4, this.radius * 1.4);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(-this.radius * 0.35, -this.radius * 0.35, this.radius * 0.7, this.radius * 0.7);
+
+    } else if (this.type === 'devourer') {
+      // Crimson Vortex Glyph with Black Hole Center
+      ctx.shadowBlur = 22;
+      ctx.shadowColor = this.color;
+      ctx.save();
+      ctx.rotate(Date.now() / 300);
+      ctx.fillStyle = this.color;
+      ctx.beginPath();
+      for (let i = 0; i < 12; i++) {
+        const a = (i * Math.PI) / 6;
+        const r = i % 2 === 0 ? this.radius * 1.3 : this.radius * 0.75;
+        const px = Math.cos(a) * r;
+        const py = Math.sin(a) * r;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+
+      ctx.fillStyle = '#050208';
+      ctx.beginPath();
+      ctx.arc(0, 0, this.radius * 0.55, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
     }
 
     // Health Bar above enemy
@@ -943,7 +1223,6 @@ class BossArtifact {
     this.floatTimer += dt * 4;
 
     const dist = Math.hypot(player.x - this.x, player.y - this.y);
-    // Magnet attraction
     if (dist <= player.magnetRadius * 1.5) {
       const angle = Math.atan2(player.y - this.y, player.x - this.x);
       const magnetSpeed = 380;
@@ -1006,7 +1285,6 @@ class XpGem {
   update(dt, player) {
     const dist = Math.hypot(player.x - this.x, player.y - this.y);
 
-    // Magnet attraction
     if (dist <= player.magnetRadius) {
       const angle = Math.atan2(player.y - this.y, player.x - this.x);
       const magnetSpeed = 340 + (player.magnetRadius - dist) * 1.5;
@@ -1014,7 +1292,6 @@ class XpGem {
       this.y += Math.sin(angle) * magnetSpeed * dt;
     }
 
-    // Collection check
     if (dist < player.radius + this.radius) {
       this.markedForDeletion = true;
       player.addXP(this.value);
@@ -1072,6 +1349,7 @@ function createDamageNumber(x, y, text, color) {
 const game = {
   player: null,
   projectiles: [],
+  enemyProjectiles: [],
   enemies: [],
   gems: [],
   artifacts: [],
@@ -1088,8 +1366,12 @@ const game = {
 };
 
 function initGame() {
-  game.player = new Player(canvas.width / 2, canvas.height / 2);
+  game.player = new Player(WORLD_WIDTH / 2, WORLD_HEIGHT / 2);
+  camera.x = WORLD_WIDTH / 2 - camera.width / 2;
+  camera.y = WORLD_HEIGHT / 2 - camera.height / 2;
+
   game.projectiles = [];
+  game.enemyProjectiles = [];
   game.enemies = [];
   game.gems = [];
   game.artifacts = [];
@@ -1116,34 +1398,35 @@ function initGame() {
 }
 
 function spawnEnemyWave() {
+  // Spawn in a perimeter around the current camera viewport
+  const pad = 60;
+  const left = Math.max(0, camera.x - pad);
+  const right = Math.min(WORLD_WIDTH, camera.x + camera.width + pad);
+  const top = Math.max(0, camera.y - pad);
+  const bottom = Math.min(WORLD_HEIGHT, camera.y + camera.height + pad);
+
   let x, y;
   const edge = Math.floor(Math.random() * 4);
-  if (edge === 0) { // Top
-    x = Math.random() * canvas.width;
-    y = -20;
-  } else if (edge === 1) { // Right
-    x = canvas.width + 20;
-    y = Math.random() * canvas.height;
-  } else if (edge === 2) { // Bottom
-    x = Math.random() * canvas.width;
-    y = canvas.height + 20;
-  } else { // Left
-    x = -20;
-    y = Math.random() * canvas.height;
-  }
+  if (edge === 0) { x = left + Math.random() * (right - left); y = top; }
+  else if (edge === 1) { x = right; y = top + Math.random() * (bottom - top); }
+  else if (edge === 2) { x = left + Math.random() * (right - left); y = bottom; }
+  else { x = left; y = top + Math.random() * (bottom - top); }
 
   const minutes = game.survivalTime / 60;
-  const difficultyMult = 1 + minutes * 0.45;
+  const difficultyMult = 1 + minutes * 0.4;
 
-  // Weighted enemy spawn roll
-  const roll = Math.random();
-  let type = 'swarmer';
-  if (minutes > 0.75 && roll > 0.75) {
-    type = 'dreadnought';
-  } else if (minutes > 0.35 && roll > 0.6) {
-    type = 'striker';
-  }
+  // Progressive enemy roster based on minute / boss progression:
+  let eligible = ['swarmer', 'swarmer', 'striker'];
+  if (minutes > 0.4) eligible.push('dreadnought');
 
+  // Progressive unlocks after each boss:
+  if (minutes >= 1.0) eligible.push('viper', 'viper'); // Unlocked after Boss 1
+  if (minutes >= 2.0) eligible.push('bombard');        // Unlocked after Boss 2
+  if (minutes >= 3.0) eligible.push('hydra');          // Unlocked after Boss 3
+  if (minutes >= 4.0) eligible.push('phantom');        // Unlocked after Boss 4
+  if (minutes >= 5.0) eligible.push('devourer');       // Unlocked after Boss 5
+
+  const type = eligible[Math.floor(Math.random() * eligible.length)];
   game.enemies.push(new Enemy(type, x, y, difficultyMult));
 }
 
@@ -1165,16 +1448,16 @@ async function triggerBossEncounter(minuteMark) {
     bossConfig = data.event;
   } catch (err) {
     bossConfig = {
-      boss_name: "TITAN VORTEX",
+      boss_name: `TITAN MARK-${minuteMark}`,
       title: "Core Anomaly",
-      transmission: "SIGNAL CORRUPTED. PURGING THREAT.",
+      transmission: "HOSTILE VECTOR DETECTED. INITIATING TARGET ELIMINATION.",
       color: "#ff0055",
-      stats: { health_mult: 4.0, speed_mult: 0.9, damage_mult: 1.8 }
+      stats: { health_mult: 4.0 + minuteMark * 0.8, speed_mult: 0.9, damage_mult: 1.8 }
     };
   }
 
   // Display Event Banner
-  eventTagTitle.textContent = `${bossConfig.title.toUpperCase()} (MINUTE ${minuteMark})`;
+  eventTagTitle.textContent = `${(bossConfig.title || 'CRITICAL ANOMALY').toUpperCase()} (BOSS ${minuteMark})`;
   eventBossName.textContent = bossConfig.boss_name;
   eventTransmission.textContent = `"${bossConfig.transmission}"`;
   eventBanner.classList.remove('hidden');
@@ -1183,30 +1466,28 @@ async function triggerBossEncounter(minuteMark) {
     eventBanner.classList.add('hidden');
   }, 5500);
 
-  // Spawn Boss Enemy at top center
-  game.enemies.push(new Enemy('boss', canvas.width / 2, -40, 1.0, bossConfig));
+  // Spawn Boss Enemy descending from above current camera
+  const spawnX = Math.max(80, Math.min(WORLD_WIDTH - 80, camera.x + camera.width / 2));
+  const spawnY = Math.max(40, camera.y - 50);
+  game.enemies.push(new Enemy('boss', spawnX, spawnY, 1.0 + (minuteMark - 1) * 0.4, bossConfig));
 }
 
 // --- HUD & UI Updates ---
 function updateHUD() {
   if (!game.player) return;
 
-  // HP Bar
   const hpPct = Math.max(0, (game.player.health / game.player.maxHealth) * 100);
   healthFill.style.width = `${hpPct}%`;
   healthText.textContent = `${Math.ceil(game.player.health)} / ${game.player.maxHealth}`;
 
-  // XP Bar
   const xpPct = Math.min(100, (game.player.xp / game.player.xpToNext) * 100);
   xpFill.style.width = `${xpPct}%`;
   playerLevelDisplay.textContent = game.player.level;
 
-  // Timer format (mm:ss)
   const mins = Math.floor(game.survivalTime / 60);
   const secs = Math.floor(game.survivalTime % 60);
   timerDisplay.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 
-  // Score & Kills
   scoreDisplay.textContent = game.score;
   killsDisplay.textContent = game.kills;
 }
@@ -1278,7 +1559,6 @@ function renderUpgradeChoices(upgrades) {
     const card = document.createElement('div');
     card.className = 'upgrade-card';
     
-    // Format stat pills
     const stats = upg.stats || {};
     const pills = Object.entries(stats).map(([k, v]) => {
       let label = k.replace('_', ' ').toUpperCase();
@@ -1462,6 +1742,103 @@ restartBtn.addEventListener('click', () => {
   initGame();
 });
 
+// --- Radar Minimap & World Boundary Rendering ---
+function drawArenaBorders(ctx) {
+  ctx.save();
+  // Neon boundary laser field
+  ctx.strokeStyle = '#00f0ff';
+  ctx.lineWidth = 4;
+  ctx.shadowBlur = 18;
+  ctx.shadowColor = '#00f0ff';
+  ctx.strokeRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+
+  // Outer warning hazard perimeter
+  ctx.strokeStyle = 'rgba(255, 0, 85, 0.35)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(-8, -8, WORLD_WIDTH + 16, WORLD_HEIGHT + 16);
+
+  // Corner holographic defense towers
+  const towers = [
+    [0, 0], [WORLD_WIDTH, 0],
+    [0, WORLD_HEIGHT], [WORLD_WIDTH, WORLD_HEIGHT]
+  ];
+  for (const [tx, ty] of towers) {
+    ctx.fillStyle = '#00f0ff';
+    ctx.shadowBlur = 20;
+    ctx.shadowColor = '#00f0ff';
+    ctx.beginPath();
+    ctx.arc(tx, ty, 16, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawMinimap(ctx) {
+  const mapW = 140;
+  const mapH = 93;
+  const mapX = canvas.width - mapW - 12;
+  const mapY = 12;
+
+  ctx.save();
+  // Semi-transparent radar background
+  ctx.fillStyle = 'rgba(7, 9, 19, 0.85)';
+  ctx.strokeStyle = 'rgba(0, 240, 255, 0.4)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.rect(mapX, mapY, mapW, mapH);
+  ctx.fill();
+  ctx.stroke();
+
+  // Radar bounds scale
+  const scaleX = mapW / WORLD_WIDTH;
+  const scaleY = mapH / WORLD_HEIGHT;
+
+  // Viewport rectangle
+  const camRectX = mapX + camera.x * scaleX;
+  const camRectY = mapY + camera.y * scaleY;
+  const camRectW = camera.width * scaleX;
+  const camRectH = camera.height * scaleY;
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(camRectX, camRectY, camRectW, camRectH);
+
+  // Draw Artifacts on radar
+  for (const art of game.artifacts) {
+    ctx.fillStyle = '#ffd700';
+    ctx.beginPath();
+    ctx.arc(mapX + art.x * scaleX, mapY + art.y * scaleY, 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Draw Bosses on radar
+  for (const e of game.enemies) {
+    if (e.isBoss) {
+      ctx.fillStyle = '#ff0055';
+      ctx.shadowBlur = 6;
+      ctx.shadowColor = '#ff0055';
+      ctx.beginPath();
+      ctx.arc(mapX + e.x * scaleX, mapY + e.y * scaleY, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // Draw Player on radar
+  if (game.player) {
+    ctx.fillStyle = '#00f0ff';
+    ctx.shadowBlur = 6;
+    ctx.shadowColor = '#00f0ff';
+    ctx.beginPath();
+    ctx.arc(mapX + game.player.x * scaleX, mapY + game.player.y * scaleY, 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.fillStyle = 'rgba(0, 240, 255, 0.7)';
+  ctx.font = '700 8px Orbitron, sans-serif';
+  ctx.fillText('RADAR SCANNER', mapX + 6, mapY + 12);
+
+  ctx.restore();
+}
+
 // --- Main Game Loop (60 FPS) ---
 function gameLoop(timestamp) {
   if (!game.lastTimestamp) game.lastTimestamp = timestamp;
@@ -1472,25 +1849,26 @@ function gameLoop(timestamp) {
     game.survivalTime += dt;
     updateHUD();
 
-    // Check boss encounter milestones (every 1 minute mark)
+    // Check boss encounter milestones (minutes 1, 2, 3, 4, and 5)
     const currentMinute = Math.floor(game.survivalTime / 60);
-    if (currentMinute >= 1 && !game.bossSpawnedAt[currentMinute]) {
+    if (currentMinute >= 1 && currentMinute <= 5 && !game.bossSpawnedAt[currentMinute]) {
       game.bossSpawnedAt[currentMinute] = true;
       triggerBossEncounter(currentMinute);
     }
 
     // Spawner tick
     game.spawnTimer += dt;
-    const currentSpawnRate = Math.max(0.28, game.spawnInterval - (game.survivalTime / 60) * 0.18);
+    const currentSpawnRate = Math.max(0.24, game.spawnInterval - (game.survivalTime / 60) * 0.16);
     if (game.spawnTimer >= currentSpawnRate) {
       game.spawnTimer = 0;
       spawnEnemyWave();
     }
 
-    // Update Player
+    // Update Player & Camera
     game.player.update(dt, game.enemies, game.projectiles);
+    camera.update(game.player);
 
-    // Update Projectiles
+    // Update Player Projectiles
     for (let i = game.projectiles.length - 1; i >= 0; i--) {
       const p = game.projectiles[i];
       p.update(dt);
@@ -1513,6 +1891,15 @@ function gameLoop(timestamp) {
 
       if (p.markedForDeletion) {
         game.projectiles.splice(i, 1);
+      }
+    }
+
+    // Update Enemy Projectiles (Bombard Plasma Orbs)
+    for (let i = game.enemyProjectiles.length - 1; i >= 0; i--) {
+      const ep = game.enemyProjectiles[i];
+      ep.update(dt, game.player);
+      if (ep.markedForDeletion) {
+        game.enemyProjectiles.splice(i, 1);
       }
     }
 
@@ -1577,26 +1964,33 @@ function gameLoop(timestamp) {
     }
   }
 
-  // --- Rendering ---
+  // --- Rendering with Camera Viewport ---
   ctx.fillStyle = '#070913';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Starfield grid
+  // Apply Camera Translation
+  ctx.save();
+  ctx.translate(-Math.round(camera.x), -Math.round(camera.y));
+
+  // Starfield grid covering 1920x1280
   ctx.strokeStyle = 'rgba(0, 240, 255, 0.04)';
   ctx.lineWidth = 1;
   const gridSize = 48;
-  for (let x = 0; x < canvas.width; x += gridSize) {
+  for (let x = 0; x <= WORLD_WIDTH; x += gridSize) {
     ctx.beginPath();
     ctx.moveTo(x, 0);
-    ctx.lineTo(x, canvas.height);
+    ctx.lineTo(x, WORLD_HEIGHT);
     ctx.stroke();
   }
-  for (let y = 0; y < canvas.height; y += gridSize) {
+  for (let y = 0; y <= WORLD_HEIGHT; y += gridSize) {
     ctx.beginPath();
     ctx.moveTo(0, y);
-    ctx.lineTo(canvas.width, y);
+    ctx.lineTo(WORLD_WIDTH, y);
     ctx.stroke();
   }
+
+  // Draw Arena Laser Perimeter
+  drawArenaBorders(ctx);
 
   // Draw Gems
   for (const g of game.gems) g.draw(ctx);
@@ -1604,10 +1998,13 @@ function gameLoop(timestamp) {
   // Draw Boss Artifacts
   for (const art of game.artifacts) art.draw(ctx);
 
+  // Draw Enemy Projectiles
+  for (const ep of game.enemyProjectiles) ep.draw(ctx);
+
   // Draw Enemies
   for (const e of game.enemies) e.draw(ctx);
 
-  // Draw Projectiles
+  // Draw Player Projectiles
   for (const p of game.projectiles) p.draw(ctx);
 
   // Draw Nova Rings
@@ -1631,7 +2028,6 @@ function gameLoop(timestamp) {
     ctx.shadowColor = b.color;
     ctx.beginPath();
     ctx.moveTo(b.x1, b.y1);
-    // Draw slight zig-zag
     const midX = (b.x1 + b.x2) / 2 + (Math.random() - 0.5) * 20;
     const midY = (b.y1 + b.y2) / 2 + (Math.random() - 0.5) * 20;
     ctx.lineTo(midX, midY);
@@ -1664,6 +2060,12 @@ function gameLoop(timestamp) {
     ctx.fillText(dn.text, dn.x, dn.y);
     ctx.restore();
   }
+
+  // End Camera Translation
+  ctx.restore();
+
+  // Draw Screen-Space HUD: Minimap Radar
+  drawMinimap(ctx);
 
   requestAnimationFrame(gameLoop);
 }
