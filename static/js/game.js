@@ -95,10 +95,12 @@ const leaderboardPilotInput = document.getElementById('leaderboard-pilot-input')
 const leaderboardPilotSaveBtn = document.getElementById('leaderboard-pilot-save-btn');
 const pilotSaveStatus = document.getElementById('pilot-save-status');
 
-// Tactical Pause DOM Elements
+// Tactical Pause & Quit DOM Elements
 const pauseBtn = document.getElementById('pause-btn');
+const quitBtn = document.getElementById('quit-btn');
 const pauseModal = document.getElementById('pause-modal');
 const resumeBtn = document.getElementById('resume-btn');
+const pauseQuitBtn = document.getElementById('pause-quit-btn');
 const pauseTimeVal = document.getElementById('pause-time-val');
 const pauseScoreVal = document.getElementById('pause-score-val');
 const pauseKillsVal = document.getElementById('pause-kills-val');
@@ -405,6 +407,15 @@ window.addEventListener('keydown', (e) => {
       return;
     }
     togglePause();
+    return;
+  }
+
+  if (e.code === 'KeyQ') {
+    const active = document.activeElement;
+    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
+      return;
+    }
+    quitCurrentRun();
     return;
   }
 
@@ -2236,6 +2247,23 @@ function togglePause(forcePause = null) {
   }
 }
 
+function quitCurrentRun() {
+  if (game.state === 'GAME_OVER') return;
+  const wasPlaying = (game.state === 'PLAYING');
+  if (wasPlaying) {
+    togglePause(true);
+  }
+  const confirmed = confirm("Are you sure you want to abandon the simulation?\nYour current run stats and score will be finalized.");
+  if (confirmed) {
+    if (pauseModal) pauseModal.classList.add('hidden');
+    triggerGameOver();
+  } else {
+    if (wasPlaying) {
+      togglePause(false);
+    }
+  }
+}
+
 function openLeaderboardModal() {
   if (leaderboardModal) {
     if (game.state === 'PLAYING') {
@@ -2367,9 +2395,11 @@ if (callsignInput) {
   });
 }
 
-// Tactical Pause button click listeners
+// Tactical Pause & Quit button click listeners
 if (pauseBtn) pauseBtn.addEventListener('click', () => togglePause());
 if (resumeBtn) resumeBtn.addEventListener('click', () => togglePause(false));
+if (quitBtn) quitBtn.addEventListener('click', quitCurrentRun);
+if (pauseQuitBtn) pauseQuitBtn.addEventListener('click', quitCurrentRun);
 
 // Initialize Pilot Name in HUD and input fields
 setPilotName(getCurrentPilotName());

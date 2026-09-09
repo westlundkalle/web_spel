@@ -59,6 +59,7 @@
         </div>
         <div class="system-controls">
           <button id="pause-btn" class="btn-icon" title="Pause / Resume Game [P / ESC]">⏸️</button>
+          <button id="quit-btn" class="btn-icon" title="Abandon Run / Quit to Results [Q]">🛑</button>
           <button id="leaderboard-btn" class="btn-icon" title="Global All-Time Leaderboard">🏆</button>
           <button id="audio-toggle" class="btn-icon" title="Toggle Synthesizer Audio">🔊</button>
           <div id="ai-status-indicator" class="ai-status-pill checking" title="AI Subsystem Status">
@@ -84,7 +85,8 @@
       <!-- Controls hint banner -->
       <div class="controls-hint">
         <span>[W][A][S][D] Move</span> &bull;
-        <span>[P] or [ESC] Pause</span> &bull;
+        <span>[P]/[ESC] Pause</span> &bull;
+        <span>[Q] Quit</span> &bull;
         <span>Blaster Auto-Targets</span> &bull;
         <span>Collect Blue Nanite Orbs</span>
       </div>
@@ -240,13 +242,14 @@
           </div>
         </div>
 
-        <div class="pause-actions">
-          <button id="resume-btn" class="btn-restart" style="width: 100%; margin-top: 4px;">▶ RESUME SIMULATION [ESC / P]</button>
+        <div class="pause-actions" style="display: flex; flex-direction: column; gap: 8px; margin-top: 6px;">
+          <button id="resume-btn" class="btn-restart" style="width: 100%;">▶ RESUME SIMULATION [ESC / P]</button>
+          <button id="pause-quit-btn" class="btn-abandon" style="width: 100%;">🛑 ABANDON SIMULATION / QUIT [Q]</button>
         </div>
       </div>
     </div>
   </div>
 
-  <script src="/static/js/game.js?v=20260909_18"></script>
+  <script src="/static/js/game.js?v=20260909_19"></script>
 </body>
 </html>

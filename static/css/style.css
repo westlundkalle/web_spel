@@ -1062,3 +1062,31 @@ body {
   color: var(--accent-cyan);
   font-weight: 700;
 }
+
+/* Abandon / Quit Button Styles */
+.btn-abandon {
+  background: rgba(255, 0, 85, 0.12) !important;
+  border: 1px solid rgba(255, 0, 85, 0.45) !important;
+  color: #ff3366 !important;
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  padding: 10px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-abandon:hover {
+  background: rgba(255, 0, 85, 0.3) !important;
+  border-color: #ff0055 !important;
+  box-shadow: 0 0 14px rgba(255, 0, 85, 0.5) !important;
+  color: #ffffff !important;
+}
+
+#quit-btn:hover {
+  background: rgba(255, 0, 85, 0.25);
+  border-color: #ff0055;
+  box-shadow: 0 0 10px rgba(255, 0, 85, 0.6);
+}
