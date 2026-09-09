@@ -815,9 +815,10 @@ class Enemy {
       this.damage = 20;
       this.color = '#00f0ff';
       this.xpValue = 4;
-      this.dashTimer = 2.0 + Math.random() * 1.5;
+      this.dashTimer = 1.5 + Math.random() * 0.8;
       this.isDashing = false;
       this.dashDuration = 0;
+      this.dashAngle = 0;
     } else if (type === 'bombard') { // Unlocks after Boss 2 (Minute 2+)
       this.radius = 22;
       this.speed = 60 * (1 + speedMult * 0.025);
@@ -867,29 +868,37 @@ class Enemy {
   }
 
   update(dt, player) {
-    this.angle = Math.atan2(player.y - this.y, player.x - this.x);
-
     let effectiveSpeed = this.speed;
     if (this.slowTimer > 0) {
       this.slowTimer -= dt;
       effectiveSpeed *= 0.55;
     }
 
-    // Special behavior: Viper lightning dash
+    // Special behavior: Viper straight-line lightning dart
     if (this.type === 'viper') {
       if (this.isDashing) {
         this.dashDuration -= dt;
-        effectiveSpeed *= 2.3;
+        effectiveSpeed *= 2.6;
+        // Lock straight line heading: do not re-calculate angle towards player
+        this.angle = this.dashAngle;
         spawnExplosion(this.x, this.y, '#00f0ff', 1);
-        if (this.dashDuration <= 0) this.isDashing = false;
+        if (this.dashDuration <= 0) {
+          this.isDashing = false;
+        }
       } else {
+        // Track player normally when outside darting phase
+        this.angle = Math.atan2(player.y - this.y, player.x - this.x);
         this.dashTimer -= dt;
         if (this.dashTimer <= 0) {
-          this.dashTimer = 2.8;
+          this.dashTimer = 1.8 + Math.random() * 0.5; // Lowered ability use time / cooldown
           this.isDashing = true;
-          this.dashDuration = 0.5;
+          this.dashDuration = 0.35; // Lowered dart duration for a swift, crisp dash
+          this.dashAngle = Math.atan2(player.y - this.y, player.x - this.x);
+          this.angle = this.dashAngle;
         }
       }
+    } else {
+      this.angle = Math.atan2(player.y - this.y, player.x - this.x);
     }
 
     // Special behavior: Bombard artillery plasma fire
