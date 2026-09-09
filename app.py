@@ -96,7 +96,7 @@ def health():
     """Health check endpoint for load balancers, Nginx, and monitoring."""
     provider = get_active_provider()
     model = (
-        os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+        os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
         if provider == "gemini"
         else (os.getenv("OPENAI_MODEL", "gpt-4o-mini") if provider == "openai" else "offline-fallback")
     )
@@ -126,7 +126,7 @@ def generate_upgrades():
             from google.genai import types
 
             client = genai.Client(api_key=gemini_key)
-            model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+            model = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
 
             prompt = (
                 f"You are a game designer balancing an arcade bullet-heaven survival game.\n"
@@ -149,8 +149,7 @@ def generate_upgrades():
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json",
-                    temperature=0.8,
-                    max_output_tokens=500
+                    temperature=0.8
                 )
             )
 
@@ -239,7 +238,7 @@ def generate_boss_event():
             from google.genai import types
 
             client = genai.Client(api_key=gemini_key)
-            model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+            model = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
 
             prompt = (
                 f"You are the tactical AI director for a retro sci-fi bullet-heaven arcade game.\n"
@@ -259,8 +258,7 @@ def generate_boss_event():
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json",
-                    temperature=0.85,
-                    max_output_tokens=350
+                    temperature=0.85
                 )
             )
 

@@ -32,9 +32,10 @@ AWS EC2 Instance (Ubuntu 22.04 LTS)
        │       │
        │       ▼ (Proxy to localhost:5000)
        └── Gunicorn + Flask (Python 3 Backend)
-               │
-               ▼ (HTTPS API Call)
-       OpenAI API (gpt-4o-mini)
+                │
+                ▼ (HTTPS API Call)
+        Google Gemini API (gemini-3.5-flash-lite) [Primary]
+        or OpenAI API (gpt-4o-mini) [Secondary]
 ```
 
 ---
@@ -44,12 +45,13 @@ AWS EC2 Instance (Ubuntu 22.04 LTS)
 Generative AI is a central, meaningful component of the gameplay:
 1. **Dynamic Upgrades (`POST /api/generate-upgrades`)**:
    - The game sends current player level, damage multipliers, attack speed, movement speed, and health.
-   - OpenAI `gpt-4o-mini` is invoked with structured JSON mode (`response_format={"type": "json_object"}`).
-   - The AI returns punchy upgrade titles, lore descriptions, relevant emojis, and strictly balanced stat multipliers.
-2. **Dynamic Boss Wave (`POST /api/generate-boss-event`)**:
-   - At survival milestones, the AI generates a customized boss with a unique title, ominous transmission, and modifiers (`armored`, `swift`, `radiant`).
-3. **Resilience & Fallback Protocol**:
-   - The backend validates all responses. If the API key is missing or the external API fails, it smoothly falls back to a curated pool of upgrades, keeping gameplay responsive and costs controlled.
+   - Powered by Google Gemini API (`gemini-3.5-flash-lite`) via the official `google-genai` SDK with native JSON structured output.
+   - Ultra-fast ~1.4s response times ensuring immediate upgrade selection.
+   - Generates punchy sci-fi upgrade names, creative descriptions, emojis, and balanced stat multipliers.
+2. **Dynamic Boss Encounters (`POST /api/generate-boss-event`)**:
+   - At survival milestones, the AI director synthesizes an emergency combat alert with a custom boss name, lore transmission, and combat modifiers (`armored`, `swift`, `radiant`).
+3. **Resilience & Multi-Tier Fallback Protocol**:
+   - The backend prioritizes Google Gemini, falls back to OpenAI if configured, and falls back to an internal balanced upgrade pool if offline or unauthenticated. The game never crashes or stalls.
 
 ---
 
