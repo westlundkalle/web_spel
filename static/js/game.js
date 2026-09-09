@@ -1477,7 +1477,7 @@ async function triggerBossEncounter(minuteMark) {
 
   setTimeout(() => {
     eventBanner.classList.add('hidden');
-  }, 5500);
+  }, 4500);
 
   // Spawn Boss Enemy descending from above current camera
   const spawnX = Math.max(80, Math.min(WORLD_WIDTH - 80, camera.x + camera.width / 2));
