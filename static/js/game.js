@@ -1007,7 +1007,9 @@ class Enemy {
 
       // ALL BOSSES (and mega Devourers) DROP LEGENDARY ARTIFACT + HEALTH CORE + XP CLUSTER
       if (isBossType) {
-        game.artifacts.push(new BossArtifact(this.x, this.y));
+        game.bossesDefeated = (game.bossesDefeated || 0) + 1;
+        const isPostTen = (this.bossMinute ? this.bossMinute > 10 : (game.bossesDefeated > 10)) || (game.bossesDefeated > 10);
+        game.artifacts.push(new BossArtifact(this.x, this.y, isPostTen));
         if (game.healthDrops) {
           game.healthDrops.push(new HealthDrop(this.x, this.y, 40));
         }
@@ -1016,7 +1018,11 @@ class Enemy {
           const offsetY = (Math.random() - 0.5) * 80;
           game.gems.push(new XpGem(this.x + offsetX, this.y + offsetY, 8));
         }
-        createDamageNumber(this.x, this.y - 32, '★ BOSS CORE ARTIFACT DROPPED! ★', '#ffd700');
+        if (isPostTen) {
+          createDamageNumber(this.x, this.y - 32, '⚡ STAT OVERCLOCK CORE DROPPED! ⚡', '#00f0ff');
+        } else {
+          createDamageNumber(this.x, this.y - 32, '★ BOSS CORE ARTIFACT DROPPED! ★', '#ffd700');
+        }
         sounds.playBossAlert();
       } else {
         game.gems.push(new XpGem(this.x, this.y, this.xpValue));
@@ -1307,10 +1313,11 @@ class Enemy {
 }
 
 class BossArtifact {
-  constructor(x, y) {
+  constructor(x, y, isAutoUpgrade = false) {
     this.x = x;
     this.y = y;
     this.radius = 18;
+    this.isAutoUpgrade = isAutoUpgrade;
     this.collected = false;
     this.rotation = 0;
     this.floatTimer = 0;
@@ -1334,8 +1341,12 @@ class BossArtifact {
 
     if (dist < player.radius + this.radius) {
       this.collected = true;
-      sounds.playLevelUp();
-      triggerBossReward();
+      if (this.isAutoUpgrade) {
+        grantRandomBossStatUpgrade(player);
+      } else {
+        sounds.playLevelUp();
+        triggerBossReward();
+      }
     }
   }
 
@@ -1343,8 +1354,12 @@ class BossArtifact {
     ctx.save();
     ctx.translate(this.x, this.y + Math.sin(this.floatTimer) * 4);
 
+    const beamColor = this.isAutoUpgrade ? 'rgba(0, 240, 255, 0.45)' : 'rgba(255, 215, 0, 0.35)';
+    const ringColor = this.isAutoUpgrade ? '#00f0ff' : '#ffd700';
+    const innerColor = this.isAutoUpgrade ? '#ff0077' : '#ff9100';
+
     // High-altitude beacon beam shooting upward into the sky
-    ctx.strokeStyle = 'rgba(255, 215, 0, 0.35)';
+    ctx.strokeStyle = beamColor;
     ctx.lineWidth = 8;
     ctx.beginPath();
     ctx.moveTo(0, -120);
@@ -1354,14 +1369,14 @@ class BossArtifact {
     // Outer rotating diamond ring
     ctx.rotate(this.rotation);
     ctx.shadowBlur = 22;
-    ctx.shadowColor = '#ffd700';
-    ctx.strokeStyle = '#ffd700';
+    ctx.shadowColor = ringColor;
+    ctx.strokeStyle = ringColor;
     ctx.lineWidth = 3;
     ctx.strokeRect(-14, -14, 28, 28);
 
     // Inner counter-rotating diamond
     ctx.rotate(-this.rotation * 2);
-    ctx.fillStyle = '#ff9100';
+    ctx.fillStyle = innerColor;
     ctx.fillRect(-8, -8, 16, 16);
 
     // Core pearl
@@ -1525,6 +1540,7 @@ const game = {
   score: 0,
   kills: 0,
   bossSpawnedAt: {},
+  bossesDefeated: 0,
   state: 'PLAYING',
   lastTimestamp: 0
 };
@@ -1551,6 +1567,7 @@ function initGame() {
   game.score = 0;
   game.kills = 0;
   game.bossSpawnedAt = {};
+  game.bossesDefeated = 0;
   game.state = 'PLAYING';
   game.lastTimestamp = performance.now();
 
@@ -1647,7 +1664,9 @@ async function triggerBossEncounter(minuteMark) {
   // Spawn Boss Enemy descending from above current camera
   const spawnX = Math.max(80, Math.min(WORLD_WIDTH - 80, camera.x + camera.width / 2));
   const spawnY = Math.max(40, camera.y - 50);
-  game.enemies.push(new Enemy('boss', spawnX, spawnY, 1.0 + (minuteMark - 1) * 0.6, bossConfig));
+  const bossEnemy = new Enemy('boss', spawnX, spawnY, 1.0 + (minuteMark - 1) * 0.6, bossConfig);
+  bossEnemy.bossMinute = minuteMark;
+  game.enemies.push(bossEnemy);
 }
 
 // --- HUD & UI Updates ---
@@ -1913,6 +1932,102 @@ function applyUpgrade(upgrade) {
   game.state = 'PLAYING';
   game.lastTimestamp = performance.now();
   updateHUD();
+}
+
+// --- Automated Boss Stat Upgrades (For Bosses defeated after the first 10) ---
+const RANDOM_BOSS_STAT_UPGRADES = [
+  {
+    name: 'Overclocked Capacitors',
+    icon: '⚡',
+    desc: '+25% Attack Speed',
+    stats: { attack_speed: 0.25 }
+  },
+  {
+    name: 'Heavy Plasma Core',
+    icon: '💥',
+    desc: '+30% Weapon Damage',
+    stats: { damage: 0.30 }
+  },
+  {
+    name: 'Multi-Vector Array',
+    icon: '🎯',
+    desc: '+1 Projectile Volley',
+    stats: { projectile_count: 1 }
+  },
+  {
+    name: 'Sub-Light Thrusters',
+    icon: '🚀',
+    desc: '+18% Movement Speed',
+    stats: { move_speed: 0.18 }
+  },
+  {
+    name: 'Quantum Attraction Coil',
+    icon: '🧲',
+    desc: '+45% Magnet Range',
+    stats: { magnet_radius: 0.45 }
+  },
+  {
+    name: 'Nanite Hull Reinforcement',
+    icon: '💚',
+    desc: '+35 Max HP & +1.5 HP/s Regen',
+    stats: { heal: 35, hp_regen: 1.5 }
+  },
+  {
+    name: 'Hyper-Kinetic Piercer',
+    icon: '🔱',
+    desc: '+1 Projectile Pierce',
+    stats: { piercing: 1 }
+  },
+  {
+    name: 'Dark Matter Leech',
+    icon: '🩸',
+    desc: '+6% Vampiric Drain Chance',
+    stats: { vampiric: 0.06 }
+  },
+  {
+    name: 'Orbital Defense Satellite',
+    icon: '🪐',
+    desc: '+1 Orbital Defense Guard',
+    stats: { orbitals: 1 }
+  },
+  {
+    name: 'Tesla Field Overdrive',
+    icon: '🌩️',
+    desc: '+15% Attack Speed & +15% Damage',
+    stats: { attack_speed: 0.15, damage: 0.15 }
+  }
+];
+
+let autoUpgradeToastTimer = null;
+function showAutoUpgradeToast(upgrade) {
+  const toast = document.getElementById('auto-upgrade-toast');
+  const toastIcon = document.getElementById('toast-icon');
+  const toastName = document.getElementById('toast-name');
+  const toastStats = document.getElementById('toast-stats');
+  if (!toast) return;
+
+  if (toastIcon) toastIcon.textContent = upgrade.icon || '⚡';
+  if (toastName) toastName.textContent = upgrade.name;
+  if (toastStats) toastStats.textContent = upgrade.desc;
+  toast.classList.remove('hidden');
+
+  if (autoUpgradeToastTimer) clearTimeout(autoUpgradeToastTimer);
+  autoUpgradeToastTimer = setTimeout(() => {
+    toast.classList.add('hidden');
+  }, 3200);
+}
+
+function grantRandomBossStatUpgrade(player) {
+  const choice = RANDOM_BOSS_STAT_UPGRADES[Math.floor(Math.random() * RANDOM_BOSS_STAT_UPGRADES.length)];
+  applyUpgrade(choice);
+  sounds.playHealthPickup();
+
+  // Floating combat notifications
+  createDamageNumber(player.x, player.y - 18, `${choice.icon} ${choice.name.toUpperCase()}`, '#ffd700');
+  createDamageNumber(player.x, player.y - 42, `[AUTO-INSTALLED: ${choice.desc}]`, '#00f0ff');
+
+  // Top-corner HUD toast
+  showAutoUpgradeToast(choice);
 }
 
 function triggerGameOver() {
@@ -2288,7 +2403,7 @@ function drawMinimap(ctx) {
 
   // Draw Artifacts on radar
   for (const art of game.artifacts) {
-    ctx.fillStyle = '#ffd700';
+    ctx.fillStyle = art.isAutoUpgrade ? '#00f0ff' : '#ffd700';
     ctx.beginPath();
     ctx.arc(mapX + art.x * scaleX, mapY + art.y * scaleY, 3, 0, Math.PI * 2);
     ctx.fill();
@@ -2606,15 +2721,18 @@ function drawBossArtifactPointers(ctx) {
     const edgeX = Math.max(margin, Math.min(canvas.width - margin, centerX + Math.cos(angle) * (canvas.width / 2 - margin)));
     const edgeY = Math.max(margin, Math.min(canvas.height - margin, centerY + Math.sin(angle) * (canvas.height / 2 - margin)));
 
+    const color = art.isAutoUpgrade ? '#00f0ff' : '#ffd700';
+    const label = art.isAutoUpgrade ? `⚡ STAT CORE ${worldDist}m` : `👑 BOSS DROP ${worldDist}m`;
+
     ctx.save();
     ctx.translate(edgeX, edgeY);
 
     ctx.shadowBlur = 16;
-    ctx.shadowColor = '#ffd700';
+    ctx.shadowColor = color;
 
     ctx.save();
     ctx.rotate(angle);
-    ctx.fillStyle = '#ffd700';
+    ctx.fillStyle = color;
     ctx.beginPath();
     ctx.moveTo(14, 0);
     ctx.lineTo(-10, -8);
@@ -2625,9 +2743,9 @@ function drawBossArtifactPointers(ctx) {
     ctx.restore();
 
     ctx.font = 'bold 9px Orbitron, sans-serif';
-    ctx.fillStyle = '#ffd700';
+    ctx.fillStyle = color;
     ctx.textAlign = 'center';
-    ctx.fillText(`👑 BOSS DROP ${worldDist}m`, 0, -14);
+    ctx.fillText(label, 0, -14);
 
     ctx.restore();
   }

@@ -1002,3 +1002,63 @@ body {
   box-shadow: 0 0 10px var(--accent-cyan);
   color: var(--accent-yellow);
 }
+
+/* In-Game Auto Upgrade Toast */
+.auto-upgrade-toast {
+  position: absolute;
+  top: 75px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(7, 9, 19, 0.92);
+  border: 1px solid var(--accent-cyan);
+  border-left: 4px solid var(--accent-cyan);
+  padding: 10px 16px;
+  border-radius: 6px;
+  box-shadow: 0 0 24px rgba(0, 240, 255, 0.4);
+  font-family: var(--font-display);
+  pointer-events: none;
+  z-index: 50;
+  animation: toastSlideIn 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+}
+
+.auto-upgrade-toast.hidden {
+  display: none;
+}
+
+@keyframes toastSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.auto-upgrade-toast .toast-icon {
+  font-size: 24px;
+  filter: drop-shadow(0 0 8px var(--accent-cyan));
+}
+
+.auto-upgrade-toast .toast-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--accent-yellow);
+  text-shadow: 0 0 8px rgba(255, 230, 0, 0.5);
+}
+
+.auto-upgrade-toast .toast-desc {
+  font-size: 11px;
+  color: #fff;
+  letter-spacing: 0.5px;
+  margin-top: 2px;
+}
+
+.auto-upgrade-toast #toast-stats {
+  color: var(--accent-cyan);
+  font-weight: 700;
+}
