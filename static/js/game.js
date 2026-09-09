@@ -1217,6 +1217,9 @@ async function triggerLevelUp() {
   levelUpModal.classList.remove('hidden');
   upgradeCardsContainer.innerHTML = '<div style="grid-column: 1 / -1; padding: 25px; font-family: Orbitron; font-size: 14px; letter-spacing: 2px; color: var(--accent-cyan);">🤖 NEURAL SYNTHESIS IN PROGRESS...</div>';
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 3500);
+
   try {
     const payload = {
       level: game.player.level,
@@ -1232,8 +1235,10 @@ async function triggerLevelUp() {
     const response = await fetch('/api/generate-upgrades', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
+      signal: controller.signal
     });
+    clearTimeout(timeoutId);
 
     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
     const data = await response.json();
@@ -1247,7 +1252,8 @@ async function triggerLevelUp() {
     }
     renderUpgradeChoices(data.upgrades);
   } catch (err) {
-    console.warn('Backend API request failed, using emergency local upgrades:', err);
+    clearTimeout(timeoutId);
+    console.warn('Backend API request failed or timed out, using emergency local upgrades:', err);
     aiBadge.textContent = '⚡ OFFLINE BACKUP PROTOCOL';
     renderUpgradeChoices(getLocalFallbackUpgrades());
   }
@@ -1305,12 +1311,17 @@ async function triggerBossReward() {
     bossRewardCardsContainer.innerHTML = '<div style="grid-column: 1 / -1; padding: 25px; font-family: Orbitron; font-size: 14px; letter-spacing: 2px; color: #ffd700;">👑 HARVESTING BOSS ARTIFACT DATA...</div>';
   }
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 3500);
+
   try {
     const res = await fetch('/api/generate-boss-rewards', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ level: game.player.level })
+      body: JSON.stringify({ level: game.player.level }),
+      signal: controller.signal
     });
+    clearTimeout(timeoutId);
     if (!res.ok) throw new Error(`HTTP error ${res.status}`);
     const data = await res.json();
     if (bossAiBadge) {
@@ -1322,7 +1333,8 @@ async function triggerBossReward() {
     }
     renderBossRewardChoices(data.rewards);
   } catch (err) {
-    console.warn('Boss rewards request failed, using emergency pool:', err);
+    clearTimeout(timeoutId);
+    console.warn('Boss rewards request failed or timed out, using emergency pool:', err);
     if (bossAiBadge) bossAiBadge.textContent = '👑 LEGENDARY BACKUP PROTOCOL';
     renderBossRewardChoices(getLocalBossFallbackRewards());
   }
