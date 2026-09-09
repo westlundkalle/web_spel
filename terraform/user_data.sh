@@ -46,7 +46,7 @@ User=ubuntu
 WorkingDirectory=/opt/web_spel
 Environment="PATH=/opt/web_spel/venv/bin"
 EnvironmentFile=/opt/web_spel/.env
-ExecStart=/opt/web_spel/venv/bin/gunicorn --workers 3 --bind 127.0.0.1:5000 app:app
+ExecStart=/opt/web_spel/venv/bin/gunicorn --workers 3 --timeout 120 --bind 127.0.0.1:5000 app:app
 Restart=always
 RestartSec=5
 

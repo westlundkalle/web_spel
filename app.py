@@ -319,6 +319,108 @@ def generate_boss_event():
         "event": chosen
     }), 200
 
+# Fallback legendary boss evolution rewards
+FALLBACK_BOSS_REWARDS = [
+    {
+        "id": "orbital_plasma_shield",
+        "name": "Orbital Plasma Guard",
+        "tier": "LEGENDARY",
+        "description": "Deploys 2 high-velocity energy spheres orbiting your drone, dealing continuous contact damage to all hostiles.",
+        "icon": "🪐",
+        "stats": {"orbitals": 2, "damage": 0.25}
+    },
+    {
+        "id": "chain_lightning",
+        "name": "Tesla Discharge Coil",
+        "tier": "LEGENDARY",
+        "description": "Periodically discharges high-voltage electric arcs chaining across up to 4 nearby hostiles.",
+        "icon": "⚡",
+        "stats": {"chain_lightning": 1, "attack_speed": 0.20}
+    },
+    {
+        "id": "frost_nova",
+        "name": "Cryo Zero Emitter",
+        "tier": "LEGENDARY",
+        "description": "Emits periodic sub-zero shockwaves that slow all hostiles by 40% and shatter weak drones.",
+        "icon": "❄️",
+        "stats": {"frost_nova": 1, "magnet_radius": 0.35}
+    },
+    {
+        "id": "piercing_railgun",
+        "name": "Hyper-Velocity Accelerator",
+        "tier": "LEGENDARY",
+        "description": "Main weapon plasma bolts pierce straight through up to 3 hostiles without disintegrating.",
+        "icon": "🔱",
+        "stats": {"piercing": 2, "damage": 0.35}
+    },
+    {
+        "id": "vampiric_syphon",
+        "name": "Dark Matter Syphon",
+        "tier": "LEGENDARY",
+        "description": "Vaporized hostiles have a 25% chance to restore +2 HP to your mainframe.",
+        "icon": "🩸",
+        "stats": {"vampiric": 0.25, "move_speed": 0.20}
+    }
+]
+
+@app.route("/api/generate-boss-rewards", methods=["POST"])
+def generate_boss_rewards():
+    """
+    Generates 3 legendary evolution upgrades dropped exclusively by defeated bosses.
+    """
+    data = request.get_json(silent=True) or {}
+    level = data.get("level", 5)
+    gemini_key = os.getenv("GEMINI_API_KEY")
+
+    if gemini_key:
+        try:
+            from google import genai
+            from google.genai import types
+
+            client = genai.Client(api_key=gemini_key)
+            model = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite")
+
+            prompt = (
+                f"You are the game balance director for an arcade bullet-heaven survival game.\n"
+                f"The player just vanquished a formidable Boss Dreadnought at Level {level}!\n"
+                f"Generate exactly 3 LEGENDARY tier evolution upgrades as a JSON object with key 'rewards'.\n"
+                f"Each reward object must have:\n"
+                f"- 'id': snake_case unique id (e.g. 'orbital_plasma_shield', 'chain_lightning', 'frost_nova', 'piercing_railgun', 'vampiric_syphon')\n"
+                f"- 'name': epic legendary name (2-3 words)\n"
+                f"- 'tier': 'LEGENDARY'\n"
+                f"- 'description': 1 vivid sentence of lore and mechanical power\n"
+                f"- 'icon': 1 epic sci-fi emoji (e.g. '🪐', '⚡', '❄️', '🔱', '🩸')\n"
+                f"- 'stats': object choosing at least 1 unique mechanic: 'orbitals' (2), 'chain_lightning' (1), 'frost_nova' (1), 'piercing' (2), or 'vampiric' (0.25), along with a stat boost ('damage': 0.25 to 0.40, 'move_speed': 0.15 to 0.30, 'heal': 35)\n"
+                f"Return valid JSON only."
+            )
+
+            response = client.models.generate_content(
+                model=model,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    temperature=0.85
+                )
+            )
+
+            res_data = json.loads(response.text.strip())
+            rewards = res_data.get("rewards", [])
+            if isinstance(rewards, list) and len(rewards) >= 3:
+                return jsonify({
+                    "source": "gemini",
+                    "model": model,
+                    "rewards": rewards[:3]
+                }), 200
+        except Exception as e:
+            logging.warning(f"Gemini boss rewards generation failed: {e}. Using fallback.")
+
+    import random
+    selected = random.sample(FALLBACK_BOSS_REWARDS, min(3, len(FALLBACK_BOSS_REWARDS)))
+    return jsonify({
+        "source": "fallback",
+        "rewards": selected
+    }), 200
+
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
