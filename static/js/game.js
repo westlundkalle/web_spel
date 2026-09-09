@@ -330,6 +330,24 @@ class SoundController {
       });
     } catch (e) {}
   }
+
+  playHealthPickup() {
+    if (!this.enabled || !this.ctx) return;
+    try {
+      const t = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(520, t);
+      osc.frequency.exponentialRampToValueAtTime(1040, t + 0.18);
+      gain.gain.setValueAtTime(0.16, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.18);
+    } catch (e) {}
+  }
 }
 
 const sounds = new SoundController();
@@ -772,17 +790,18 @@ class Enemy {
     // Controlled speed scaling so evasion remains fair while health scales
     const speedMult = Math.min(2.0, this.difficultyMultiplier);
 
-    if (bossConfig) {
+    if (type === 'boss' || bossConfig) {
       this.isBoss = true;
-      this.bossName = bossConfig.boss_name || 'TITAN LEVIATHAN';
+      const cfg = bossConfig || {};
+      this.bossName = cfg.boss_name || 'TITAN LEVIATHAN';
       this.radius = 38;
-      const stats = bossConfig.stats || {};
+      const stats = cfg.stats || {};
       this.speed = 70 * (stats.speed_mult || 1.0);
       this.health = 500 * (stats.health_mult || 4.0) * this.difficultyMultiplier;
       this.maxHealth = this.health;
       this.damage = 40 * (stats.damage_mult || 1.8);
-      this.color = bossConfig.color || '#ff0055';
-      this.xpValue = 40;
+      this.color = cfg.color || '#ff0055';
+      this.xpValue = 50;
     } else if (type === 'swarmer') {
       this.radius = 12;
       this.speed = 140 * (1 + speedMult * 0.04);
@@ -857,13 +876,15 @@ class Enemy {
       this.warpCooldown = 3.0;
       this.warpTimer = 2.0 + Math.random() * 2.0;
     } else if (type === 'devourer') { // Unlocks after Boss 5 (Minute 5+)
+      this.isBoss = true;
+      this.bossName = 'MEGA DEVOURER';
       this.radius = 32;
       this.speed = 55 * (1 + speedMult * 0.02);
       this.health = 460 * this.difficultyMultiplier;
       this.maxHealth = this.health;
       this.damage = 50;
       this.color = '#e63946';
-      this.xpValue = 25;
+      this.xpValue = 35;
     }
   }
 
@@ -942,9 +963,10 @@ class Enemy {
     if (this.health <= 0) {
       this.markedForDeletion = true;
       sounds.playExplosion();
-      spawnExplosion(this.x, this.y, this.color, this.isBoss ? 45 : 12);
+      const isBossType = this.isBoss || this.type === 'boss' || this.type === 'devourer';
+      spawnExplosion(this.x, this.y, this.color, isBossType ? 50 : 12);
       game.kills += 1;
-      game.score += this.xpValue * 25;
+      game.score += isBossType ? 3500 : (this.xpValue * 25);
 
       // Hydra splits into two spores upon death
       if (this.splitsOnDeath) {
@@ -958,14 +980,19 @@ class Enemy {
         createDamageNumber(game.player.x, game.player.y - 20, '+2 HP', '#00ff88');
       }
 
-      // Boss Drops Legendary Core Artifact + Cluster of gems
-      if (this.isBoss) {
+      // ALL BOSSES (and mega Devourers) DROP LEGENDARY ARTIFACT + HEALTH CORE + XP CLUSTER
+      if (isBossType) {
         game.artifacts.push(new BossArtifact(this.x, this.y));
-        for (let i = 0; i < 8; i++) {
-          const offsetX = (Math.random() - 0.5) * 60;
-          const offsetY = (Math.random() - 0.5) * 60;
-          game.gems.push(new XpGem(this.x + offsetX, this.y + offsetY, 5));
+        if (game.healthDrops) {
+          game.healthDrops.push(new HealthDrop(this.x, this.y, 40));
         }
+        for (let i = 0; i < 16; i++) {
+          const offsetX = (Math.random() - 0.5) * 80;
+          const offsetY = (Math.random() - 0.5) * 80;
+          game.gems.push(new XpGem(this.x + offsetX, this.y + offsetY, 8));
+        }
+        createDamageNumber(this.x, this.y - 32, '★ BOSS CORE ARTIFACT DROPPED! ★', '#ffd700');
+        sounds.playBossAlert();
       } else {
         game.gems.push(new XpGem(this.x, this.y, this.xpValue));
       }
@@ -1258,20 +1285,24 @@ class BossArtifact {
   constructor(x, y) {
     this.x = x;
     this.y = y;
-    this.radius = 16;
+    this.radius = 18;
     this.collected = false;
     this.rotation = 0;
     this.floatTimer = 0;
+    this.age = 0;
   }
 
   update(dt, player) {
     this.rotation += dt * 2.5;
     this.floatTimer += dt * 4;
+    this.age += dt;
 
     const dist = Math.hypot(player.x - this.x, player.y - this.y);
-    if (dist <= player.magnetRadius * 1.5) {
+    // Magnet pull: active within magnet radius, and gently glides towards player after 4s so drops are never lost
+    const effectiveMagnetDist = Math.max(player.magnetRadius * 2.0, this.age > 4.0 ? 9999 : 0);
+    if (dist <= effectiveMagnetDist) {
       const angle = Math.atan2(player.y - this.y, player.x - this.x);
-      const magnetSpeed = 380;
+      const magnetSpeed = this.age > 4.0 ? 320 : 440;
       this.x += Math.cos(angle) * magnetSpeed * dt;
       this.y += Math.sin(angle) * magnetSpeed * dt;
     }
@@ -1287,32 +1318,93 @@ class BossArtifact {
     ctx.save();
     ctx.translate(this.x, this.y + Math.sin(this.floatTimer) * 4);
 
-    // Glowing beacon beam
-    ctx.strokeStyle = 'rgba(255, 215, 0, 0.25)';
-    ctx.lineWidth = 6;
+    // High-altitude beacon beam shooting upward into the sky
+    ctx.strokeStyle = 'rgba(255, 215, 0, 0.35)';
+    ctx.lineWidth = 8;
     ctx.beginPath();
-    ctx.moveTo(0, -60);
-    ctx.lineTo(0, 60);
+    ctx.moveTo(0, -120);
+    ctx.lineTo(0, 120);
     ctx.stroke();
 
     // Outer rotating diamond ring
     ctx.rotate(this.rotation);
-    ctx.shadowBlur = 18;
+    ctx.shadowBlur = 22;
     ctx.shadowColor = '#ffd700';
     ctx.strokeStyle = '#ffd700';
-    ctx.lineWidth = 2.5;
-    ctx.strokeRect(-12, -12, 24, 24);
+    ctx.lineWidth = 3;
+    ctx.strokeRect(-14, -14, 28, 28);
 
     // Inner counter-rotating diamond
     ctx.rotate(-this.rotation * 2);
     ctx.fillStyle = '#ff9100';
-    ctx.fillRect(-7, -7, 14, 14);
+    ctx.fillRect(-8, -8, 16, 16);
 
     // Core pearl
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
-    ctx.arc(0, 0, 4, 0, Math.PI * 2);
+    ctx.arc(0, 0, 4.5, 0, Math.PI * 2);
     ctx.fill();
+
+    ctx.restore();
+  }
+}
+
+class HealthDrop {
+  constructor(x, y, healAmount = 40) {
+    this.x = x;
+    this.y = y;
+    this.healAmount = healAmount;
+    this.radius = 14;
+    this.collected = false;
+    this.floatTimer = Math.random() * Math.PI;
+    this.age = 0;
+  }
+
+  update(dt, player) {
+    this.floatTimer += dt * 4;
+    this.age += dt;
+
+    const dist = Math.hypot(player.x - this.x, player.y - this.y);
+    const effectiveMagnetDist = Math.max(player.magnetRadius * 1.8, this.age > 4.0 ? 9999 : 0);
+    if (dist <= effectiveMagnetDist) {
+      const angle = Math.atan2(player.y - this.y, player.x - this.x);
+      const magnetSpeed = this.age > 4.0 ? 300 : 400;
+      this.x += Math.cos(angle) * magnetSpeed * dt;
+      this.y += Math.sin(angle) * magnetSpeed * dt;
+    }
+
+    if (dist < player.radius + this.radius) {
+      this.collected = true;
+      player.health = Math.min(player.maxHealth, player.health + this.healAmount);
+      sounds.playHealthPickup();
+      createDamageNumber(player.x, player.y - 20, `+${this.healAmount} HP`, '#00ff88');
+      updateHUD();
+    }
+  }
+
+  draw(ctx) {
+    ctx.save();
+    ctx.translate(this.x, this.y + Math.sin(this.floatTimer) * 3);
+
+    // Glowing green aura
+    ctx.shadowBlur = 14;
+    ctx.shadowColor = '#00ff88';
+    ctx.fillStyle = 'rgba(0, 255, 136, 0.2)';
+    ctx.beginPath();
+    ctx.arc(0, 0, this.radius + 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Container circle
+    ctx.strokeStyle = '#00ff88';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Medical Cross (+)
+    ctx.fillStyle = '#00ff88';
+    ctx.fillRect(-3, -8, 6, 16);
+    ctx.fillRect(-8, -3, 16, 6);
 
     ctx.restore();
   }
@@ -1399,6 +1491,7 @@ const game = {
   enemies: [],
   gems: [],
   artifacts: [],
+  healthDrops: [],
   lightningBolts: [],
   novaRings: [],
   spawnTimer: 0,
@@ -1421,6 +1514,7 @@ function initGame() {
   game.enemies = [];
   game.gems = [];
   game.artifacts = [];
+  game.healthDrops = [];
   game.lightningBolts = [];
   game.novaRings = [];
   particles.length = 0;
@@ -1491,8 +1585,13 @@ async function triggerBossEncounter(minuteMark) {
         level: game.player.level
       })
     });
+    if (!res.ok) throw new Error(`HTTP error ${res.status}`);
     const data = await res.json();
-    bossConfig = data.event;
+    if (data && data.event) {
+      bossConfig = data.event;
+    } else {
+      throw new Error('No event object in response');
+    }
   } catch (err) {
     bossConfig = {
       boss_name: `TITAN MARK-${minuteMark}`,
@@ -1504,14 +1603,15 @@ async function triggerBossEncounter(minuteMark) {
   }
 
   // Display Event Banner
-  eventTagTitle.textContent = `${(bossConfig.title || 'CRITICAL ANOMALY').toUpperCase()} (BOSS ${minuteMark})`;
-  eventBossName.textContent = bossConfig.boss_name;
-  eventTransmission.textContent = `"${bossConfig.transmission}"`;
-  eventBanner.classList.remove('hidden');
-
-  setTimeout(() => {
-    eventBanner.classList.add('hidden');
-  }, 4500);
+  if (eventTagTitle) eventTagTitle.textContent = `${(bossConfig.title || 'CRITICAL ANOMALY').toUpperCase()} (BOSS ${minuteMark})`;
+  if (eventBossName) eventBossName.textContent = bossConfig.boss_name || `TITAN MARK-${minuteMark}`;
+  if (eventTransmission) eventTransmission.textContent = `"${bossConfig.transmission || 'PURGING INTRUDER ANOMALY.'}"`;
+  if (eventBanner) {
+    eventBanner.classList.remove('hidden');
+    setTimeout(() => {
+      eventBanner.classList.add('hidden');
+    }, 4500);
+  }
 
   // Spawn Boss Enemy descending from above current camera
   const spawnX = Math.max(80, Math.min(WORLD_WIDTH - 80, camera.x + camera.width / 2));
@@ -2094,6 +2194,16 @@ function drawMinimap(ctx) {
     ctx.fill();
   }
 
+  // Draw Health Drops on radar
+  if (game.healthDrops) {
+    for (const h of game.healthDrops) {
+      ctx.fillStyle = '#00ff88';
+      ctx.beginPath();
+      ctx.arc(mapX + h.x * scaleX, mapY + h.y * scaleY, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
   // Draw Bosses on radar
   for (const e of game.enemies) {
     if (e.isBoss) {
@@ -2133,9 +2243,9 @@ function gameLoop(timestamp) {
     game.survivalTime += dt;
     updateHUD();
 
-    // Check boss encounter milestones (minutes 1, 2, 3, 4, and 5)
+    // Check boss encounter milestones (every minute: 1, 2, 3, 4, 5, 6, 7...)
     const currentMinute = Math.floor(game.survivalTime / 60);
-    if (currentMinute >= 1 && currentMinute <= 5 && !game.bossSpawnedAt[currentMinute]) {
+    if (currentMinute >= 1 && !game.bossSpawnedAt[currentMinute]) {
       game.bossSpawnedAt[currentMinute] = true;
       triggerBossEncounter(currentMinute);
     }
@@ -2214,6 +2324,17 @@ function gameLoop(timestamp) {
       }
     }
 
+    // Update Health Drops
+    if (game.healthDrops) {
+      for (let i = game.healthDrops.length - 1; i >= 0; i--) {
+        const h = game.healthDrops[i];
+        h.update(dt, game.player);
+        if (h.collected) {
+          game.healthDrops.splice(i, 1);
+        }
+      }
+    }
+
     // Update Lightning Visual Effects
     for (let i = game.lightningBolts.length - 1; i >= 0; i--) {
       const b = game.lightningBolts[i];
@@ -2264,7 +2385,7 @@ function gameLoop(timestamp) {
   for (let x = 0; x <= WORLD_WIDTH; x += gridSize) {
     ctx.beginPath();
     ctx.moveTo(x, 0);
-    ctx.lineTo(x, WORLD_HEIGHT);
+    ctx.lineTo(WORLD_HEIGHT);
     ctx.stroke();
   }
   for (let y = 0; y <= WORLD_HEIGHT; y += gridSize) {
@@ -2279,6 +2400,11 @@ function gameLoop(timestamp) {
 
   // Draw Gems
   for (const g of game.gems) g.draw(ctx);
+
+  // Draw Health Drops
+  if (game.healthDrops) {
+    for (const h of game.healthDrops) h.draw(ctx);
+  }
 
   // Draw Boss Artifacts
   for (const art of game.artifacts) art.draw(ctx);
@@ -2349,10 +2475,62 @@ function gameLoop(timestamp) {
   // End Camera Translation
   ctx.restore();
 
-  // Draw Screen-Space HUD: Minimap Radar
+  // Screen-Space HUD: Off-screen Boss Drop Pointer & Minimap Radar
+  drawBossArtifactPointers(ctx);
   drawMinimap(ctx);
 
   requestAnimationFrame(gameLoop);
+}
+
+// Off-screen HUD Directional Pointer for Boss Artifacts
+function drawBossArtifactPointers(ctx) {
+  if (!game.artifacts || game.artifacts.length === 0 || !game.player) return;
+
+  const margin = 45;
+  for (const art of game.artifacts) {
+    const screenX = (art.x - camera.x) * camera.zoom;
+    const screenY = (art.y - camera.y) * camera.zoom;
+
+    // Inside visible screen: skyward beam is visible, no pointer needed
+    if (screenX >= 25 && screenX <= canvas.width - 25 && screenY >= 25 && screenY <= canvas.height - 25) {
+      continue;
+    }
+
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const dx = screenX - centerX;
+    const dy = screenY - centerY;
+    const angle = Math.atan2(dy, dx);
+    const worldDist = Math.round(Math.hypot(art.x - game.player.x, art.y - game.player.y));
+
+    const edgeX = Math.max(margin, Math.min(canvas.width - margin, centerX + Math.cos(angle) * (canvas.width / 2 - margin)));
+    const edgeY = Math.max(margin, Math.min(canvas.height - margin, centerY + Math.sin(angle) * (canvas.height / 2 - margin)));
+
+    ctx.save();
+    ctx.translate(edgeX, edgeY);
+
+    ctx.shadowBlur = 16;
+    ctx.shadowColor = '#ffd700';
+
+    ctx.save();
+    ctx.rotate(angle);
+    ctx.fillStyle = '#ffd700';
+    ctx.beginPath();
+    ctx.moveTo(14, 0);
+    ctx.lineTo(-10, -8);
+    ctx.lineTo(-4, 0);
+    ctx.lineTo(-10, 8);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    ctx.font = 'bold 9px Orbitron, sans-serif';
+    ctx.fillStyle = '#ffd700';
+    ctx.textAlign = 'center';
+    ctx.fillText(`👑 BOSS DROP ${worldDist}m`, 0, -14);
+
+    ctx.restore();
+  }
 }
 
 // Start game
