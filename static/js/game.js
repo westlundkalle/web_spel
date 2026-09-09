@@ -515,16 +515,17 @@ class Player {
     if (closestEnemy) {
       sounds.playShoot();
       const baseAngle = Math.atan2(closestEnemy.y - this.y, closestEnemy.x - this.x);
-      const count = Math.max(1, this.projectileCount);
+      const count = Math.max(1, Math.min(16, Math.round(Number(this.projectileCount)) || 1));
       const safeDmg = Math.max(5, (Number(this.damageMult) || 1.0) * 25);
 
       if (count === 1) {
         projectiles.push(new Projectile(this.x, this.y, baseAngle, safeDmg, this.pierceCount));
       } else {
-        const spreadArc = 0.26; // radians
-        const startAngle = baseAngle - (spreadArc * (count - 1)) / 2;
+        const spreadArc = Math.min(Math.PI * 0.75, 0.22 * (count - 1));
+        const startAngle = baseAngle - spreadArc / 2;
+        const step = spreadArc / (count - 1);
         for (let i = 0; i < count; i++) {
-          const angle = startAngle + i * spreadArc;
+          const angle = startAngle + i * step;
           projectiles.push(new Projectile(this.x, this.y, angle, safeDmg, this.pierceCount));
         }
       }
@@ -1055,10 +1056,12 @@ function spawnExplosion(x, y, color, count = 10) {
 }
 
 function createDamageNumber(x, y, text, color) {
+  let safeText = String(text);
+  if (safeText === 'NaN' || safeText.includes('NaN')) safeText = '25';
   damageNumbers.push({
     x: x + (Math.random() * 14 - 7),
     y,
-    text,
+    text: safeText,
     color,
     lifespan: 0.6,
     vy: -40
@@ -1371,18 +1374,40 @@ function renderBossRewardChoices(rewards) {
 function applyUpgrade(upgrade) {
   const stats = upgrade.stats || {};
   
-  // Safe numeric additions preventing any string/NaN poisoning
-  if (stats.damage) game.player.damageMult += parseStatNumber(stats.damage);
-  if (stats.attack_speed) game.player.attackSpeedMult += parseStatNumber(stats.attack_speed);
-  if (stats.projectile_count) game.player.projectileCount += Math.round(parseStatNumber(stats.projectile_count));
-  if (stats.move_speed) game.player.moveSpeedMult += parseStatNumber(stats.move_speed);
-  if (stats.magnet_radius) game.player.magnetRadiusMult += parseStatNumber(stats.magnet_radius);
-  if (stats.heal) game.player.health = Math.min(game.player.maxHealth, game.player.health + parseStatNumber(stats.heal));
-  if (stats.hp_regen) game.player.hpRegen += parseStatNumber(stats.hp_regen);
+  // Safe numeric additions preventing any string or NaN poisoning
+  if (stats.damage !== undefined) {
+    const d = parseStatNumber(stats.damage);
+    if (!isNaN(d) && d !== 0) game.player.damageMult = (Number(game.player.damageMult) || 1.0) + d;
+  }
+  if (stats.attack_speed !== undefined) {
+    const s = parseStatNumber(stats.attack_speed);
+    if (!isNaN(s) && s !== 0) game.player.attackSpeedMult = (Number(game.player.attackSpeedMult) || 1.0) + s;
+  }
+  if (stats.projectile_count !== undefined) {
+    const p = Math.round(parseStatNumber(stats.projectile_count));
+    if (!isNaN(p) && p > 0) game.player.projectileCount = Math.min(16, (Number(game.player.projectileCount) || 1) + p);
+  }
+  if (stats.move_speed !== undefined) {
+    const m = parseStatNumber(stats.move_speed);
+    if (!isNaN(m) && m !== 0) game.player.moveSpeedMult = (Number(game.player.moveSpeedMult) || 1.0) + m;
+  }
+  if (stats.magnet_radius !== undefined) {
+    const mag = parseStatNumber(stats.magnet_radius);
+    if (!isNaN(mag) && mag !== 0) game.player.magnetRadiusMult = (Number(game.player.magnetRadiusMult) || 1.0) + mag;
+  }
+  if (stats.heal !== undefined) {
+    const h = parseStatNumber(stats.heal);
+    if (!isNaN(h) && h > 0) game.player.health = Math.min(game.player.maxHealth, (Number(game.player.health) || 100) + h);
+  }
+  if (stats.hp_regen !== undefined) {
+    const r = parseStatNumber(stats.hp_regen);
+    if (!isNaN(r) && r > 0) game.player.hpRegen = (Number(game.player.hpRegen) || 0) + r;
+  }
 
   // Legendary mechanic activations
   if (stats.orbitals) {
-    game.player.orbitalCount = (game.player.orbitalCount || 0) + Math.round(parseStatNumber(stats.orbitals));
+    const o = Math.round(parseStatNumber(stats.orbitals));
+    if (!isNaN(o) && o > 0) game.player.orbitalCount = Math.min(6, (Number(game.player.orbitalCount) || 0) + o);
   }
   if (stats.chain_lightning) {
     game.player.hasChainLightning = true;
@@ -1391,16 +1416,19 @@ function applyUpgrade(upgrade) {
     game.player.hasFrostNova = true;
   }
   if (stats.piercing) {
-    game.player.pierceCount += Math.round(parseStatNumber(stats.piercing));
+    const pr = Math.round(parseStatNumber(stats.piercing));
+    if (!isNaN(pr) && pr > 0) game.player.pierceCount = Math.min(6, (Number(game.player.pierceCount) || 0) + pr);
   }
   if (stats.vampiric) {
-    game.player.vampiricChance = Math.min(0.5, (game.player.vampiricChance || 0) + parseStatNumber(stats.vampiric));
+    const v = parseStatNumber(stats.vampiric);
+    if (!isNaN(v) && v > 0) game.player.vampiricChance = Math.min(0.5, (Number(game.player.vampiricChance) || 0) + v);
   }
 
   // Defensive sanity clamps
-  if (isNaN(game.player.damageMult) || game.player.damageMult < 0.2) game.player.damageMult = 1.0;
-  if (isNaN(game.player.attackSpeedMult) || game.player.attackSpeedMult < 0.2) game.player.attackSpeedMult = 1.0;
-  if (isNaN(game.player.moveSpeedMult) || game.player.moveSpeedMult < 0.2) game.player.moveSpeedMult = 1.0;
+  game.player.damageMult = Math.max(0.2, Number(game.player.damageMult) || 1.0);
+  game.player.attackSpeedMult = Math.max(0.2, Math.min(5.0, Number(game.player.attackSpeedMult) || 1.0));
+  game.player.projectileCount = Math.max(1, Math.min(16, Math.round(Number(game.player.projectileCount)) || 1));
+  game.player.moveSpeedMult = Math.max(0.2, Math.min(3.0, Number(game.player.moveSpeedMult) || 1.0));
 
   levelUpModal.classList.add('hidden');
   if (bossRewardModal) bossRewardModal.classList.add('hidden');
