@@ -822,7 +822,17 @@ class Enemy {
       this.radius = 38;
       const stats = cfg.stats || {};
       this.speed = 70 * (stats.speed_mult || 1.0);
-      this.health = 500 * (stats.health_mult || 4.0) * this.difficultyMultiplier;
+
+      // Base boss health calculation
+      let baseHealth = 500 * (stats.health_mult || 4.0) * this.difficultyMultiplier;
+
+      // Accelerated health scaling after the 20th boss (to match player's 20+ stacked powerups)
+      if (this.difficultyMultiplier > 12.4 || (game.bossesDefeated && game.bossesDefeated >= 20)) {
+        const post20Tier = Math.max(1, (this.difficultyMultiplier - 12.4) / 1.5);
+        baseHealth *= (1.0 + post20Tier * 0.18);
+      }
+
+      this.health = Math.round(baseHealth);
       this.maxHealth = this.health;
       this.damage = 40 * (stats.damage_mult || 1.8);
       this.color = cfg.color || '#ff0055';
@@ -905,7 +915,12 @@ class Enemy {
       this.bossName = 'MEGA DEVOURER';
       this.radius = 32;
       this.speed = 55 * (1 + speedMult * 0.02);
-      this.health = 460 * this.difficultyMultiplier;
+      let devourerHealth = 460 * this.difficultyMultiplier;
+      if (game.survivalTime > 1200) {
+        const extraMins = (game.survivalTime - 1200) / 60;
+        devourerHealth *= (1.0 + extraMins * 0.14);
+      }
+      this.health = Math.round(devourerHealth);
       this.maxHealth = this.health;
       this.damage = 50;
       this.color = '#e63946';
@@ -1650,18 +1665,19 @@ async function triggerBossEncounter(minuteMark) {
       throw new Error('No event object in response');
     }
   } catch (err) {
+    const extraHpMult = minuteMark > 20 ? (minuteMark - 20) * 1.5 : 0;
     bossConfig = {
-      boss_name: `TITAN MARK-${minuteMark}`,
-      title: "Core Anomaly",
-      transmission: "HOSTILE VECTOR DETECTED. INITIATING TARGET ELIMINATION.",
-      color: "#ff0055",
-      stats: { health_mult: 4.0 + minuteMark * 0.8, speed_mult: 0.9, damage_mult: 1.8 }
+      boss_name: minuteMark > 20 ? `APEX TITAN MK-${minuteMark}` : `TITAN MARK-${minuteMark}`,
+      title: minuteMark > 20 ? "Apex Dreadnought Anomaly" : "Core Anomaly",
+      transmission: minuteMark > 20 ? "CRITICAL ALERT: APEX DREADNOUGHT ANOMALY ENGAGED." : "HOSTILE VECTOR DETECTED. INITIATING TARGET ELIMINATION.",
+      color: minuteMark > 20 ? "#ff0077" : "#ff0055",
+      stats: { health_mult: 4.0 + minuteMark * 0.8 + extraHpMult, speed_mult: 0.9, damage_mult: 1.8 }
     };
   }
 
   // Display Event Banner
-  if (eventTagTitle) eventTagTitle.textContent = `${(bossConfig.title || 'CRITICAL ANOMALY').toUpperCase()} (BOSS ${minuteMark})`;
-  if (eventBossName) eventBossName.textContent = bossConfig.boss_name || `TITAN MARK-${minuteMark}`;
+  if (eventTagTitle) eventTagTitle.textContent = `${(bossConfig.title || (minuteMark > 20 ? 'APEX DREADNOUGHT' : 'CRITICAL ANOMALY')).toUpperCase()} (BOSS ${minuteMark})`;
+  if (eventBossName) eventBossName.textContent = bossConfig.boss_name || (minuteMark > 20 ? `APEX TITAN MK-${minuteMark}` : `TITAN MARK-${minuteMark}`);
   if (eventTransmission) eventTransmission.textContent = `"${bossConfig.transmission || 'PURGING INTRUDER ANOMALY.'}"`;
   if (eventBanner) {
     eventBanner.classList.remove('hidden');
@@ -1673,7 +1689,15 @@ async function triggerBossEncounter(minuteMark) {
   // Spawn Boss Enemy descending from above current camera
   const spawnX = Math.max(80, Math.min(WORLD_WIDTH - 80, camera.x + camera.width / 2));
   const spawnY = Math.max(40, camera.y - 50);
-  const bossEnemy = new Enemy('boss', spawnX, spawnY, 1.0 + (minuteMark - 1) * 0.6, bossConfig);
+
+  // Scaled boss difficulty progression with accelerated curve after the 20th boss
+  let bossDifficulty = 1.0 + (minuteMark - 1) * 0.6;
+  if (minuteMark > 20) {
+    const postTwenty = minuteMark - 20;
+    bossDifficulty += postTwenty * 1.5;
+  }
+
+  const bossEnemy = new Enemy('boss', spawnX, spawnY, bossDifficulty, bossConfig);
   bossEnemy.bossMinute = minuteMark;
   game.enemies.push(bossEnemy);
 }
