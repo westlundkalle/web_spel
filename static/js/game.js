@@ -2385,7 +2385,7 @@ function gameLoop(timestamp) {
   for (let x = 0; x <= WORLD_WIDTH; x += gridSize) {
     ctx.beginPath();
     ctx.moveTo(x, 0);
-    ctx.lineTo(WORLD_HEIGHT);
+    ctx.lineTo(x, WORLD_HEIGHT);
     ctx.stroke();
   }
   for (let y = 0; y <= WORLD_HEIGHT; y += gridSize) {
