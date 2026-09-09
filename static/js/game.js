@@ -1958,7 +1958,14 @@ async function submitPlayerScore() {
     if (res.ok && data.status === 'success') {
       if (callsignStatus) {
         callsignStatus.style.color = 'var(--accent-green)';
-        callsignStatus.textContent = `✅ TRANSMISSION CONFIRMED! GLOBAL RANK: #${data.rank}`;
+        const formattedScore = Number(data.best_score || game.score).toLocaleString();
+        if (data.action === 'updated') {
+          callsignStatus.textContent = `✅ RECORD UPDATED! SCORE: ${formattedScore} | RANK: #${data.rank}`;
+        } else if (data.action === 'retained') {
+          callsignStatus.textContent = `ℹ️ PERSONAL BEST (${formattedScore}) RETAINED! RANK: #${data.rank}`;
+        } else {
+          callsignStatus.textContent = `✅ TRANSMISSION CONFIRMED! SCORE: ${formattedScore} | RANK: #${data.rank}`;
+        }
       }
       callsignSubmitBtn.textContent = 'TRANSMITTED';
     } else {

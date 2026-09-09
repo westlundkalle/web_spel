@@ -32,9 +32,23 @@ def init_db():
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
             """)
+            # Cleanup any existing duplicate entries per player (case-insensitive), keeping their best record
+            cursor.execute("""
+                DELETE FROM leaderboard
+                WHERE id NOT IN (
+                    SELECT id FROM (
+                        SELECT id, ROW_NUMBER() OVER (
+                            PARTITION BY LOWER(player_name)
+                            ORDER BY score DESC, survival_time DESC, id DESC
+                        ) as rn
+                        FROM leaderboard
+                    ) WHERE rn = 1
+                );
+            """)
+            cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_leaderboard_player_unique ON leaderboard(LOWER(player_name));")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_leaderboard_score ON leaderboard(score DESC, survival_time DESC);")
             conn.commit()
-            logging.info("Leaderboard database initialized.")
+            logging.info("Leaderboard database initialized (single record per player enforced).")
     except Exception as e:
         logging.error(f"Failed to initialize database: {e}")
 
@@ -168,7 +182,7 @@ def get_leaderboard():
 
 @app.route("/api/leaderboard", methods=["POST"])
 def submit_score():
-    """Submits a completed run score to the all-time leaderboard."""
+    """Submits or updates a player's record on the all-time leaderboard."""
     try:
         data = request.get_json(silent=True) or {}
         raw_name = str(data.get("player_name", "PILOT-ANON")).strip()
@@ -185,21 +199,71 @@ def submit_score():
             return jsonify({"status": "error", "message": "Survival time out of range"}), 400
 
         with sqlite3.connect(DB_PATH) as conn:
+            conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
+
+            # Check if player already has an entry on the leaderboard (case-insensitive)
             cursor.execute("""
-                INSERT INTO leaderboard (player_name, score, survival_time, level, kills)
-                VALUES (?, ?, ?, ?, ?)
-            """, (player_name, score, survival_time, level, kills))
+                SELECT id, player_name, score, survival_time, level, kills
+                FROM leaderboard
+                WHERE LOWER(player_name) = LOWER(?)
+                LIMIT 1
+            """, (player_name,))
+            existing = cursor.fetchone()
+
+            action = "created"
+            best_score = score
+            effective_time = survival_time
+
+            if existing is None:
+                cursor.execute("""
+                    INSERT INTO leaderboard (player_name, score, survival_time, level, kills, created_at)
+                    VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                """, (player_name, score, survival_time, level, kills))
+                action = "created"
+                best_score = score
+                effective_time = survival_time
+            else:
+                existing_score = existing["score"]
+                existing_time = existing["survival_time"]
+
+                if score > existing_score or (score == existing_score and survival_time > existing_time):
+                    # Higher score achieved: update existing entry with new stats
+                    cursor.execute("""
+                        UPDATE leaderboard
+                        SET player_name = ?, score = ?, survival_time = ?, level = ?, kills = ?, created_at = CURRENT_TIMESTAMP
+                        WHERE id = ?
+                    """, (player_name, score, survival_time, level, kills, existing["id"]))
+                    action = "updated"
+                    best_score = score
+                    effective_time = survival_time
+                else:
+                    # Existing record is higher; retain personal best on board
+                    cursor.execute("""
+                        UPDATE leaderboard
+                        SET player_name = ?
+                        WHERE id = ?
+                    """, (player_name, existing["id"]))
+                    action = "retained"
+                    best_score = existing_score
+                    effective_time = existing_time
+
             conn.commit()
 
-            cursor.execute("SELECT COUNT(*) FROM leaderboard WHERE score > ?;", (score,))
+            # Calculate exact 1-based global rank
+            cursor.execute("""
+                SELECT COUNT(*) FROM leaderboard
+                WHERE score > ? OR (score = ? AND survival_time > ?)
+            """, (best_score, best_score, effective_time))
             rank = cursor.fetchone()[0] + 1
 
         return jsonify({
             "status": "success",
-            "message": "Score recorded successfully",
-            "rank": rank
-        }), 201
+            "message": "Score processed successfully",
+            "action": action,
+            "rank": rank,
+            "best_score": best_score
+        }), 200
     except Exception as e:
         logging.error(f"Error submitting score: {e}")
         return jsonify({"status": "error", "message": "Failed to record score"}), 500
