@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+import sqlite3
 from flask import Flask, render_template, jsonify, request
 from flask_cors import CORS
 from dotenv import load_dotenv
@@ -12,6 +13,32 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 
 app = Flask(__name__)
 CORS(app)
+
+DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "leaderboard.db")
+
+def init_db():
+    """Initializes the persistent SQLite database for the all-time leaderboard."""
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS leaderboard (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    player_name TEXT NOT NULL,
+                    score INTEGER NOT NULL,
+                    survival_time REAL NOT NULL,
+                    level INTEGER NOT NULL,
+                    kills INTEGER NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """)
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_leaderboard_score ON leaderboard(score DESC, survival_time DESC);")
+            conn.commit()
+            logging.info("Leaderboard database initialized.")
+    except Exception as e:
+        logging.error(f"Failed to initialize database: {e}")
+
+init_db()
 
 # Default fallback upgrades pool when AI API is unavailable or offline
 FALLBACK_UPGRADES = [
@@ -106,6 +133,76 @@ def health():
         "provider": provider,
         "model": model
     }), 200
+
+@app.route("/api/leaderboard", methods=["GET"])
+def get_leaderboard():
+    """Returns the top all-time leaderboard records."""
+    limit = request.args.get("limit", default=20, type=int)
+    limit = max(1, min(100, limit))
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT player_name, score, survival_time, level, kills, created_at
+                FROM leaderboard
+                ORDER BY score DESC, survival_time DESC, id ASC
+                LIMIT ?
+            """, (limit,))
+            rows = cursor.fetchall()
+            leaderboard = [
+                {
+                    "player_name": row["player_name"],
+                    "score": row["score"],
+                    "survival_time": round(float(row["survival_time"]), 1),
+                    "level": row["level"],
+                    "kills": row["kills"],
+                    "created_at": row["created_at"]
+                }
+                for row in rows
+            ]
+        return jsonify({"status": "success", "leaderboard": leaderboard}), 200
+    except Exception as e:
+        logging.error(f"Error fetching leaderboard: {e}")
+        return jsonify({"status": "error", "message": "Failed to fetch leaderboard"}), 500
+
+@app.route("/api/leaderboard", methods=["POST"])
+def submit_score():
+    """Submits a completed run score to the all-time leaderboard."""
+    try:
+        data = request.get_json(silent=True) or {}
+        raw_name = str(data.get("player_name", "PILOT-ANON")).strip()
+        player_name = raw_name[:16] if raw_name else "PILOT-ANON"
+
+        score = int(data.get("score", 0))
+        survival_time = float(data.get("survival_time", 0))
+        level = int(data.get("level", 1))
+        kills = int(data.get("kills", 0))
+
+        if score < 0 or score > 100_000_000:
+            return jsonify({"status": "error", "message": "Score out of range"}), 400
+        if survival_time < 0 or survival_time > 86400:
+            return jsonify({"status": "error", "message": "Survival time out of range"}), 400
+
+        with sqlite3.connect(DB_PATH) as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO leaderboard (player_name, score, survival_time, level, kills)
+                VALUES (?, ?, ?, ?, ?)
+            """, (player_name, score, survival_time, level, kills))
+            conn.commit()
+
+            cursor.execute("SELECT COUNT(*) FROM leaderboard WHERE score > ?;", (score,))
+            rank = cursor.fetchone()[0] + 1
+
+        return jsonify({
+            "status": "success",
+            "message": "Score recorded successfully",
+            "rank": rank
+        }), 201
+    except Exception as e:
+        logging.error(f"Error submitting score: {e}")
+        return jsonify({"status": "error", "message": "Failed to record score"}), 500
 
 @app.route("/api/generate-upgrades", methods=["POST"])
 def generate_upgrades():

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CYBER SURVIVOR: AI Bullet Heaven</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=20260909_8">
+  <link rel="stylesheet" href="/static/css/style.css?v=20260909_9">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
@@ -53,6 +53,7 @@
           <span id="kills-display" class="hud-val">0</span>
         </div>
         <div class="system-controls">
+          <button id="leaderboard-btn" class="btn-icon" title="Global All-Time Leaderboard">🏆</button>
           <button id="audio-toggle" class="btn-icon" title="Toggle Synthesizer Audio">🔊</button>
           <div id="ai-status-indicator" class="ai-status-pill checking" title="AI Subsystem Status">
             <span class="dot"></span> <span id="ai-status-text">AI INIT</span>
@@ -141,13 +142,50 @@
           </div>
         </div>
 
-        <button id="restart-btn" class="btn-restart">
-          REINITIALIZE SYSTEM
-        </button>
+        <!-- Callsign Transmission to Global Leaderboard -->
+        <div id="callsign-submit-container" class="callsign-submit-container">
+          <div class="callsign-label">TRANSMIT TO ALL-TIME LEADERBOARD</div>
+          <div class="callsign-input-group">
+            <input id="callsign-input" type="text" maxlength="16" placeholder="ENTER CALLSIGN (e.g. CYBER-01)" autocomplete="off" />
+            <button id="callsign-submit-btn" class="btn-submit-score">TRANSMIT</button>
+          </div>
+          <div id="callsign-status" class="callsign-status"></div>
+        </div>
+
+        <div class="game-over-actions">
+          <button id="restart-btn" class="btn-restart">
+            REINITIALIZE SYSTEM
+          </button>
+          <button id="view-leaderboard-from-gameover" class="btn-secondary">
+            🏆 VIEW LEADERBOARD
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Global All-Time Leaderboard Modal -->
+    <div id="leaderboard-modal" class="modal-overlay hidden">
+      <div class="modal-content leaderboard-card">
+        <div class="leaderboard-header">
+          <div class="leaderboard-title-wrap">
+            <span class="leaderboard-badge">GLOBAL RECORDS</span>
+            <h2 class="leaderboard-title">ALL-TIME LEADERBOARD</h2>
+          </div>
+          <button id="leaderboard-close-btn" class="btn-icon btn-close" title="Close">✕</button>
+        </div>
+
+        <div id="leaderboard-table-container" class="leaderboard-table-container">
+          <div class="leaderboard-loading">📡 RETRIEVING ARCHIVED CALLSIGNS...</div>
+        </div>
+
+        <div class="leaderboard-footer">
+          <button id="leaderboard-refresh-btn" class="btn-subtle">🔄 REFRESH</button>
+          <button id="leaderboard-done-btn" class="btn-restart" style="padding: 8px 22px; font-size: 11px;">CLOSE</button>
+        </div>
       </div>
     </div>
   </div>
 
-  <script src="/static/js/game.js?v=20260909_8"></script>
+  <script src="/static/js/game.js?v=20260909_9"></script>
 </body>
 </html>

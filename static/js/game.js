@@ -77,6 +77,20 @@ const finalScoreDisplay = document.getElementById('final-score');
 const finalTopScoreDisplay = document.getElementById('final-top-score');
 const restartBtn = document.getElementById('restart-btn');
 
+// Leaderboard DOM Elements
+const leaderboardModal = document.getElementById('leaderboard-modal');
+const leaderboardBtn = document.getElementById('leaderboard-btn');
+const leaderboardCloseBtn = document.getElementById('leaderboard-close-btn');
+const leaderboardDoneBtn = document.getElementById('leaderboard-done-btn');
+const leaderboardRefreshBtn = document.getElementById('leaderboard-refresh-btn');
+const leaderboardTableContainer = document.getElementById('leaderboard-table-container');
+const viewLeaderboardFromGameOver = document.getElementById('view-leaderboard-from-gameover');
+const callsignInput = document.getElementById('callsign-input');
+const callsignSubmitBtn = document.getElementById('callsign-submit-btn');
+const callsignStatus = document.getElementById('callsign-status');
+
+const CALLSIGN_STORAGE_KEY = 'cyber_survivor_callsign';
+
 // --- Helper Functions ---
 function parseStatNumber(val) {
   if (val === undefined || val === null) return 0;
@@ -1768,12 +1782,172 @@ function triggerGameOver() {
   finalKillsDisplay.textContent = game.kills;
   finalScoreDisplay.textContent = game.score;
   if (finalTopScoreDisplay) finalTopScoreDisplay.textContent = playerTopScore;
+
+  // Prepare Callsign Submission
+  if (callsignInput) {
+    let savedCallsign = '';
+    try { savedCallsign = localStorage.getItem(CALLSIGN_STORAGE_KEY) || ''; } catch (e) {}
+    callsignInput.value = savedCallsign || `PILOT-${Math.floor(100 + Math.random() * 900)}`;
+  }
+  if (callsignSubmitBtn) {
+    callsignSubmitBtn.disabled = false;
+    callsignSubmitBtn.textContent = 'TRANSMIT';
+  }
+  if (callsignStatus) {
+    callsignStatus.style.color = 'var(--accent-green)';
+    callsignStatus.textContent = '';
+  }
+
   gameOverModal.classList.remove('hidden');
 }
 
 restartBtn.addEventListener('click', () => {
   initGame();
 });
+
+// --- Global All-Time Leaderboard Logic ---
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+async function fetchAndRenderLeaderboard() {
+  if (!leaderboardTableContainer) return;
+  leaderboardTableContainer.innerHTML = '<div class="leaderboard-loading">📡 RETRIEVING ARCHIVED CALLSIGNS...</div>';
+
+  try {
+    const res = await fetch('/api/leaderboard?limit=20');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const list = data.leaderboard || [];
+
+    if (list.length === 0) {
+      leaderboardTableContainer.innerHTML = '<div class="leaderboard-empty">NO MISSION RECORDS FOUND. BE THE FIRST PILOT ON THE BOARD!</div>';
+      return;
+    }
+
+    let html = `
+      <table class="leaderboard-table">
+        <thead>
+          <tr>
+            <th class="rank-col">#</th>
+            <th class="pilot-col">PILOT</th>
+            <th class="score-col">SCORE</th>
+            <th>TIME</th>
+            <th>LVL</th>
+            <th>KILLS</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+
+    list.forEach((entry, idx) => {
+      let rankBadge = `${idx + 1}`;
+      if (idx === 0) rankBadge = '🥇 1';
+      else if (idx === 1) rankBadge = '🥈 2';
+      else if (idx === 2) rankBadge = '🥉 3';
+
+      const mins = Math.floor(entry.survival_time / 60);
+      const secs = Math.floor(entry.survival_time % 60);
+      const timeStr = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+      html += `
+        <tr>
+          <td class="rank-col">${rankBadge}</td>
+          <td class="pilot-col">${escapeHtml(entry.player_name)}</td>
+          <td class="score-col">${Number(entry.score).toLocaleString()}</td>
+          <td>${timeStr}</td>
+          <td>${entry.level}</td>
+          <td>${entry.kills}</td>
+        </tr>
+      `;
+    });
+
+    html += '</tbody></table>';
+    leaderboardTableContainer.innerHTML = html;
+  } catch (err) {
+    console.error('Failed to load leaderboard:', err);
+    leaderboardTableContainer.innerHTML = '<div class="leaderboard-empty" style="color:var(--danger-red);">⚠️ UNABLE TO SYNC ARCHIVE. TRY AGAIN.</div>';
+  }
+}
+
+function openLeaderboardModal() {
+  if (leaderboardModal) {
+    leaderboardModal.classList.remove('hidden');
+    fetchAndRenderLeaderboard();
+  }
+}
+
+function closeLeaderboardModal() {
+  if (leaderboardModal) {
+    leaderboardModal.classList.add('hidden');
+  }
+}
+
+async function submitPlayerScore() {
+  if (!callsignInput || !callsignSubmitBtn) return;
+
+  const rawName = callsignInput.value.trim().toUpperCase();
+  const pilotName = rawName || 'PILOT-ANON';
+
+  // Save callsign preference locally
+  try {
+    localStorage.setItem(CALLSIGN_STORAGE_KEY, pilotName);
+  } catch (e) {}
+
+  callsignSubmitBtn.disabled = true;
+  callsignSubmitBtn.textContent = 'TRANSMITTING...';
+  if (callsignStatus) {
+    callsignStatus.style.color = 'var(--accent-cyan)';
+    callsignStatus.textContent = 'TRANSMITTING RECORD TO CORE ARCHIVE...';
+  }
+
+  try {
+    const res = await fetch('/api/leaderboard', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        player_name: pilotName,
+        score: game.score,
+        survival_time: game.survivalTime,
+        level: game.player ? game.player.level : 1,
+        kills: game.kills
+      })
+    });
+
+    const data = await res.json();
+    if (res.ok && data.status === 'success') {
+      if (callsignStatus) {
+        callsignStatus.style.color = 'var(--accent-green)';
+        callsignStatus.textContent = `✅ TRANSMISSION CONFIRMED! GLOBAL RANK: #${data.rank}`;
+      }
+      callsignSubmitBtn.textContent = 'TRANSMITTED';
+    } else {
+      throw new Error(data.message || 'Submission failed');
+    }
+  } catch (err) {
+    console.error('Score submission error:', err);
+    if (callsignStatus) {
+      callsignStatus.style.color = 'var(--danger-red)';
+      callsignStatus.textContent = '⚠️ FAILED TO TRANSMIT RECORD. CHECK NETWORK.';
+    }
+    callsignSubmitBtn.disabled = false;
+    callsignSubmitBtn.textContent = 'RETRY';
+  }
+}
+
+if (leaderboardBtn) leaderboardBtn.addEventListener('click', openLeaderboardModal);
+if (viewLeaderboardFromGameOver) viewLeaderboardFromGameOver.addEventListener('click', openLeaderboardModal);
+if (leaderboardCloseBtn) leaderboardCloseBtn.addEventListener('click', closeLeaderboardModal);
+if (leaderboardDoneBtn) leaderboardDoneBtn.addEventListener('click', closeLeaderboardModal);
+if (leaderboardRefreshBtn) leaderboardRefreshBtn.addEventListener('click', fetchAndRenderLeaderboard);
+if (callsignSubmitBtn) callsignSubmitBtn.addEventListener('click', submitPlayerScore);
+if (callsignInput) {
+  callsignInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') submitPlayerScore();
+  });
+}
 
 // --- Radar Minimap & World Boundary Rendering ---
 function drawArenaBorders(ctx) {

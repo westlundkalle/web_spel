@@ -573,3 +573,259 @@ body {
   margin-top: 3px;
   font-style: italic;
 }
+
+/* Game Over Callsign Submission */
+.callsign-submit-container {
+  margin-top: 8px;
+  margin-bottom: 18px;
+  background: rgba(0, 240, 255, 0.05);
+  border: 1px solid rgba(0, 240, 255, 0.25);
+  border-radius: 4px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.callsign-label {
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--accent-cyan);
+}
+
+.callsign-input-group {
+  display: flex;
+  gap: 8px;
+}
+
+#callsign-input {
+  flex: 1;
+  background: rgba(7, 9, 19, 0.9);
+  border: 1px solid rgba(0, 240, 255, 0.4);
+  border-radius: 3px;
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  padding: 8px 12px;
+  outline: none;
+  text-transform: uppercase;
+  transition: all 0.2s ease;
+}
+
+#callsign-input:focus {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
+}
+
+.btn-submit-score {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  padding: 8px 14px;
+  background: var(--accent-cyan);
+  color: #070913;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.4);
+  transition: all 0.2s ease;
+}
+
+.btn-submit-score:hover:not(:disabled) {
+  background: #5cf6ff;
+  box-shadow: 0 0 18px rgba(0, 240, 255, 0.7);
+  transform: translateY(-1px);
+}
+
+.btn-submit-score:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.callsign-status {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--accent-green);
+  min-height: 14px;
+}
+
+.game-over-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.btn-secondary {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  padding: 12px 20px;
+  background: rgba(255, 230, 0, 0.1);
+  color: var(--accent-yellow);
+  border: 1px solid rgba(255, 230, 0, 0.4);
+  border-radius: 4px;
+  cursor: pointer;
+  box-shadow: 0 0 12px rgba(255, 230, 0, 0.2);
+  transition: all 0.2s ease;
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 230, 0, 0.25);
+  box-shadow: 0 0 18px rgba(255, 230, 0, 0.5);
+  transform: translateY(-2px);
+}
+
+/* Leaderboard Modal Card */
+.leaderboard-card {
+  max-width: 620px;
+  width: 90%;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  background: rgba(13, 17, 31, 0.96);
+  border: 1px solid var(--accent-cyan);
+  box-shadow: 0 0 35px rgba(0, 240, 255, 0.3);
+  padding: 24px;
+}
+
+.leaderboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 18px;
+  border-bottom: 1px solid rgba(0, 240, 255, 0.2);
+  padding-bottom: 12px;
+}
+
+.leaderboard-badge {
+  font-family: var(--font-display);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: var(--accent-yellow);
+  background: rgba(255, 230, 0, 0.15);
+  padding: 2px 8px;
+  border-radius: 8px;
+  display: inline-block;
+  margin-bottom: 4px;
+}
+
+.leaderboard-title {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: #fff;
+  text-shadow: 0 0 10px rgba(0, 240, 255, 0.6);
+}
+
+.btn-close {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.leaderboard-table-container {
+  overflow-y: auto;
+  max-height: 48vh;
+  margin-bottom: 16px;
+  padding-right: 4px;
+}
+
+.leaderboard-table-container::-webkit-scrollbar {
+  width: 6px;
+}
+.leaderboard-table-container::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.3);
+}
+.leaderboard-table-container::-webkit-scrollbar-thumb {
+  background: var(--accent-cyan);
+  border-radius: 3px;
+}
+
+.leaderboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-display);
+  font-size: 12px;
+}
+
+.leaderboard-table th {
+  text-align: left;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.leaderboard-table td {
+  padding: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  color: #e2e8f0;
+}
+
+.leaderboard-table tr:hover {
+  background: rgba(0, 240, 255, 0.06);
+}
+
+.leaderboard-table .rank-col {
+  width: 45px;
+  font-weight: 900;
+}
+
+.leaderboard-table .pilot-col {
+  font-weight: 700;
+  color: #fff;
+}
+
+.leaderboard-table .score-col {
+  font-weight: 900;
+  color: var(--accent-yellow);
+  text-shadow: 0 0 6px rgba(255, 230, 0, 0.4);
+}
+
+.leaderboard-loading, .leaderboard-empty {
+  text-align: center;
+  padding: 30px 10px;
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: var(--accent-cyan);
+}
+
+.leaderboard-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid rgba(0, 240, 255, 0.15);
+  padding-top: 14px;
+}
+
+.btn-subtle {
+  background: transparent;
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  color: var(--accent-cyan);
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 8px 14px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-subtle:hover {
+  background: rgba(0, 240, 255, 0.15);
+  border-color: var(--accent-cyan);
+}
