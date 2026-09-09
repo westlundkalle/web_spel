@@ -2088,8 +2088,9 @@ function triggerGameOver() {
       localStorage.setItem(TOP_SCORE_KEY, playerTopScore.toString());
     } catch (e) {}
   }
+  if (topScoreDisplay) topScoreDisplay.textContent = playerTopScore;
   finalTimeDisplay.textContent = timerDisplay.textContent;
-  finalLevelDisplay.textContent = game.player.level;
+  finalLevelDisplay.textContent = game.player ? game.player.level : 1;
   finalKillsDisplay.textContent = game.kills;
   finalScoreDisplay.textContent = game.score;
   if (finalTopScoreDisplay) finalTopScoreDisplay.textContent = playerTopScore;
@@ -2109,6 +2110,11 @@ function triggerGameOver() {
   }
 
   gameOverModal.classList.remove('hidden');
+
+  // Automatically save and transmit high score to database
+  if (game.score > 0) {
+    submitPlayerScore();
+  }
 }
 
 restartBtn.addEventListener('click', () => {
@@ -2256,6 +2262,13 @@ function quitCurrentRun() {
   const confirmed = confirm("Are you sure you want to abandon the simulation?\nYour current run stats and score will be finalized.");
   if (confirmed) {
     if (pauseModal) pauseModal.classList.add('hidden');
+    if (game.score > playerTopScore) {
+      playerTopScore = game.score;
+      try {
+        localStorage.setItem(TOP_SCORE_KEY, playerTopScore.toString());
+      } catch (e) {}
+    }
+    if (topScoreDisplay) topScoreDisplay.textContent = playerTopScore;
     triggerGameOver();
   } else {
     if (wasPlaying) {
@@ -2390,6 +2403,12 @@ if (leaderboardDoneBtn) leaderboardDoneBtn.addEventListener('click', closeLeader
 if (leaderboardRefreshBtn) leaderboardRefreshBtn.addEventListener('click', fetchAndRenderLeaderboard);
 if (callsignSubmitBtn) callsignSubmitBtn.addEventListener('click', submitPlayerScore);
 if (callsignInput) {
+  callsignInput.addEventListener('input', () => {
+    if (callsignSubmitBtn) {
+      callsignSubmitBtn.disabled = false;
+      callsignSubmitBtn.textContent = 'SUBMIT SCORE';
+    }
+  });
   callsignInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') submitPlayerScore();
   });
