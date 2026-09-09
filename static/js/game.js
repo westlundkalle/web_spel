@@ -1008,11 +1008,20 @@ class Enemy {
       // ALL BOSSES (and mega Devourers) DROP LEGENDARY ARTIFACT + HEALTH CORE + XP CLUSTER
       if (isBossType) {
         game.bossesDefeated = (game.bossesDefeated || 0) + 1;
+        const bossNum = this.bossMinute || game.bossesDefeated;
         const isPostTen = (this.bossMinute ? this.bossMinute > 10 : (game.bossesDefeated > 10)) || (game.bossesDefeated > 10);
         game.artifacts.push(new BossArtifact(this.x, this.y, isPostTen));
-        if (game.healthDrops) {
-          game.healthDrops.push(new HealthDrop(this.x, this.y, 40));
+
+        // Health drops: guaranteed for first 10 bosses; after first 10, only every 10th boss drops healing (20, 30, 40...)
+        const shouldDropHealth = (bossNum <= 10) || (bossNum % 10 === 0);
+        if (shouldDropHealth && game.healthDrops) {
+          const healAmount = bossNum >= 20 ? 50 : 40;
+          game.healthDrops.push(new HealthDrop(this.x, this.y, healAmount));
+          if (bossNum >= 20) {
+            createDamageNumber(this.x, this.y - 52, `💚 MILESTONE RECOVERY CORE (+${healAmount} HP)`, '#00ff88');
+          }
         }
+
         for (let i = 0; i < 16; i++) {
           const offsetX = (Math.random() - 0.5) * 80;
           const offsetY = (Math.random() - 0.5) * 80;
