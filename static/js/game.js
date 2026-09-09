@@ -742,11 +742,15 @@ class Enemy {
     this.type = type;
     this.x = x;
     this.y = y;
+    this.difficultyMultiplier = difficultyMultiplier || 1.0;
     this.angle = 0;
     this.slowTimer = 0;
     this.markedForDeletion = false;
     this.isBoss = false;
     this.splitsOnDeath = false;
+
+    // Controlled speed scaling so evasion remains fair while health scales
+    const speedMult = Math.min(2.0, this.difficultyMultiplier);
 
     if (bossConfig) {
       this.isBoss = true;
@@ -754,39 +758,39 @@ class Enemy {
       this.radius = 38;
       const stats = bossConfig.stats || {};
       this.speed = 70 * (stats.speed_mult || 1.0);
-      this.health = 500 * (stats.health_mult || 4.0) * difficultyMultiplier;
+      this.health = 500 * (stats.health_mult || 4.0) * this.difficultyMultiplier;
       this.maxHealth = this.health;
       this.damage = 40 * (stats.damage_mult || 1.8);
       this.color = bossConfig.color || '#ff0055';
       this.xpValue = 40;
     } else if (type === 'swarmer') {
       this.radius = 12;
-      this.speed = 140 * (1 + difficultyMultiplier * 0.05);
-      this.health = 20 * difficultyMultiplier;
+      this.speed = 140 * (1 + speedMult * 0.04);
+      this.health = 20 * this.difficultyMultiplier;
       this.maxHealth = this.health;
       this.damage = 12;
       this.color = '#ff3366';
       this.xpValue = 1;
     } else if (type === 'striker') {
       this.radius = 16;
-      this.speed = 105 * (1 + difficultyMultiplier * 0.04);
-      this.health = 50 * difficultyMultiplier;
+      this.speed = 105 * (1 + speedMult * 0.035);
+      this.health = 50 * this.difficultyMultiplier;
       this.maxHealth = this.health;
       this.damage = 22;
       this.color = '#9d4edd';
       this.xpValue = 3;
     } else if (type === 'dreadnought') {
       this.radius = 26;
-      this.speed = 65 * (1 + difficultyMultiplier * 0.03);
-      this.health = 160 * difficultyMultiplier;
+      this.speed = 65 * (1 + speedMult * 0.025);
+      this.health = 160 * this.difficultyMultiplier;
       this.maxHealth = this.health;
       this.damage = 38;
       this.color = '#ff9100';
       this.xpValue = 8;
     } else if (type === 'viper') { // Unlocks after Boss 1 (Minute 1+)
       this.radius = 14;
-      this.speed = 175 * (1 + difficultyMultiplier * 0.04);
-      this.health = 55 * difficultyMultiplier;
+      this.speed = 175 * (1 + speedMult * 0.03);
+      this.health = 55 * this.difficultyMultiplier;
       this.maxHealth = this.health;
       this.damage = 20;
       this.color = '#00f0ff';
@@ -796,8 +800,8 @@ class Enemy {
       this.dashDuration = 0;
     } else if (type === 'bombard') { // Unlocks after Boss 2 (Minute 2+)
       this.radius = 22;
-      this.speed = 60 * (1 + difficultyMultiplier * 0.03);
-      this.health = 140 * difficultyMultiplier;
+      this.speed = 60 * (1 + speedMult * 0.025);
+      this.health = 140 * this.difficultyMultiplier;
       this.maxHealth = this.health;
       this.damage = 25;
       this.color = '#39ff14';
@@ -806,8 +810,8 @@ class Enemy {
       this.shootTimer = 1.2 + Math.random() * 2.0;
     } else if (type === 'hydra') { // Unlocks after Boss 3 (Minute 3+)
       this.radius = 24;
-      this.speed = 85 * (1 + difficultyMultiplier * 0.03);
-      this.health = 190 * difficultyMultiplier;
+      this.speed = 85 * (1 + speedMult * 0.025);
+      this.health = 190 * this.difficultyMultiplier;
       this.maxHealth = this.health;
       this.damage = 32;
       this.color = '#b5179e';
@@ -815,16 +819,16 @@ class Enemy {
       this.splitsOnDeath = true;
     } else if (type === 'hydra_spore') { // Spawned when Hydra dies
       this.radius = 10;
-      this.speed = 155 * (1 + difficultyMultiplier * 0.04);
-      this.health = 35 * difficultyMultiplier;
+      this.speed = 155 * (1 + speedMult * 0.03);
+      this.health = 35 * this.difficultyMultiplier;
       this.maxHealth = this.health;
       this.damage = 14;
       this.color = '#e0aaff';
       this.xpValue = 2;
     } else if (type === 'phantom') { // Unlocks after Boss 4 (Minute 4+)
       this.radius = 18;
-      this.speed = 100 * (1 + difficultyMultiplier * 0.03);
-      this.health = 160 * difficultyMultiplier;
+      this.speed = 100 * (1 + speedMult * 0.025);
+      this.health = 160 * this.difficultyMultiplier;
       this.maxHealth = this.health;
       this.damage = 32;
       this.color = '#ffd700';
@@ -833,8 +837,8 @@ class Enemy {
       this.warpTimer = 2.0 + Math.random() * 2.0;
     } else if (type === 'devourer') { // Unlocks after Boss 5 (Minute 5+)
       this.radius = 32;
-      this.speed = 55 * (1 + difficultyMultiplier * 0.02);
-      this.health = 460 * difficultyMultiplier;
+      this.speed = 55 * (1 + speedMult * 0.02);
+      this.health = 460 * this.difficultyMultiplier;
       this.maxHealth = this.health;
       this.damage = 50;
       this.color = '#e63946';
@@ -915,8 +919,8 @@ class Enemy {
 
       // Hydra splits into two spores upon death
       if (this.splitsOnDeath) {
-        game.enemies.push(new Enemy('hydra_spore', this.x - 12, this.y - 12, 1.0));
-        game.enemies.push(new Enemy('hydra_spore', this.x + 12, this.y + 12, 1.0));
+        game.enemies.push(new Enemy('hydra_spore', this.x - 12, this.y - 12, this.difficultyMultiplier));
+        game.enemies.push(new Enemy('hydra_spore', this.x + 12, this.y + 12, this.difficultyMultiplier));
       }
 
       // Vampiric health leech
@@ -1426,7 +1430,8 @@ function spawnEnemyWave() {
   else { x = left; y = top + Math.random() * (bottom - top); }
 
   const minutes = game.survivalTime / 60;
-  const difficultyMult = 1 + minutes * 0.4;
+  // Dynamic health scaling: steady ramp early, accelerated progression in later waves
+  const difficultyMult = 1 + minutes * 0.75 + (minutes > 2 ? (minutes - 2) * 0.35 : 0);
 
   // Progressive enemy roster based on minute / boss progression:
   let eligible = ['swarmer', 'swarmer', 'striker'];
@@ -1482,7 +1487,7 @@ async function triggerBossEncounter(minuteMark) {
   // Spawn Boss Enemy descending from above current camera
   const spawnX = Math.max(80, Math.min(WORLD_WIDTH - 80, camera.x + camera.width / 2));
   const spawnY = Math.max(40, camera.y - 50);
-  game.enemies.push(new Enemy('boss', spawnX, spawnY, 1.0 + (minuteMark - 1) * 0.4, bossConfig));
+  game.enemies.push(new Enemy('boss', spawnX, spawnY, 1.0 + (minuteMark - 1) * 0.6, bossConfig));
 }
 
 // --- HUD & UI Updates ---
