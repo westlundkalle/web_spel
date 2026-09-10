@@ -886,7 +886,7 @@ class Enemy {
       this.speed = 175 * (1 + speedMult * 0.03);
       this.health = 55 * this.difficultyMultiplier;
       this.maxHealth = this.health;
-      this.damage = Math.round(20 * dmgScaling);
+      this.damage = Math.round(10 * dmgScaling); // Halved damage from 20 to 10
       this.color = '#00f0ff';
       this.xpValue = 4;
       this.dashTimer = 1.5 + Math.random() * 0.8;
