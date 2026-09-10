@@ -330,6 +330,9 @@ class SoundController {
 
   playGem() {
     if (!this.enabled || !this.ctx) return;
+    const now = performance.now();
+    if (this.lastGemSound && (now - this.lastGemSound) < 25) return;
+    this.lastGemSound = now;
     try {
       const t = this.ctx.currentTime;
       const osc = this.ctx.createOscillator();
@@ -470,6 +473,24 @@ class SoundController {
       gain.connect(this.ctx.destination);
       osc.start(t);
       osc.stop(t + 0.18);
+    } catch (e) {}
+  }
+
+  playMagnet() {
+    if (!this.enabled || !this.ctx) return;
+    try {
+      const t = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(220, t);
+      osc.frequency.exponentialRampToValueAtTime(1480, t + 0.38);
+      gain.gain.setValueAtTime(0.22, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.42);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.42);
     } catch (e) {}
   }
 }
@@ -1358,6 +1379,15 @@ class Enemy {
           game.gems.push(new XpGem(this.x, this.y, this.xpValue));
         }
       }
+
+      // 1% drop chance for defeated enemies to drop a Super Magnet (excluding no-drop mob variants: normal devourer & normal colossus)
+      const canDropItems = isBossType || (this.type !== 'devourer' && this.type !== 'colossus');
+      if (canDropItems && Math.random() < 0.01) {
+        if (!game.superMagnets) game.superMagnets = [];
+        game.superMagnets.push(new SuperMagnet(this.x, this.y));
+        createDamageNumber(this.x, this.y - 32, '🧲 SUPER MAGNET DROPPED!', '#00f0ff');
+      }
+
       updateHUD();
     }
   }
@@ -2098,6 +2128,160 @@ class HealthDrop {
   }
 }
 
+class SuperMagnet {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.radius = 16;
+    this.collected = false;
+    this.rotation = 0;
+    this.floatTimer = Math.random() * Math.PI;
+    this.pulseTimer = 0;
+    this.age = 0;
+  }
+
+  update(dt, player) {
+    this.rotation += dt * 3.0;
+    this.floatTimer += dt * 4.0;
+    this.pulseTimer += dt * 5.0;
+    this.age += dt;
+
+    const dist = Math.hypot(player.x - this.x, player.y - this.y);
+    // Magnet pull: active within player magnet radius, and gently glides toward player after 4s so drops are never lost
+    const effectiveMagnetDist = Math.max(player.magnetRadius * 2.0, this.age > 4.0 ? 9999 : 0);
+    if (dist <= effectiveMagnetDist) {
+      const angle = Math.atan2(player.y - this.y, player.x - this.x);
+      const magnetSpeed = this.age > 4.0 ? 320 : 440;
+      this.x += Math.cos(angle) * magnetSpeed * dt;
+      this.y += Math.sin(angle) * magnetSpeed * dt;
+    }
+
+    if (dist < player.radius + this.radius) {
+      this.collected = true;
+      this.activate(player);
+    }
+  }
+
+  activate(player) {
+    sounds.playMagnet();
+
+    // Claim all unclaimed EXP gems currently on the ground
+    let claimedCount = 0;
+    if (game.gems && game.gems.length > 0) {
+      for (const gem of game.gems) {
+        if (!gem.markedForDeletion) {
+          gem.vacuumed = true;
+          claimedCount++;
+        }
+      }
+    }
+
+    if (claimedCount > 0) {
+      createDamageNumber(player.x, player.y - 38, `🧲 SUPER MAGNET: ${claimedCount} EXP ORBS CLAIMED! 🧲`, '#00f0ff');
+    } else {
+      createDamageNumber(player.x, player.y - 38, '🧲 SUPER MAGNET ACTIVATED! 🧲', '#00f0ff');
+    }
+
+    // Expanding visual electromagnetic shockwave ring
+    if (game.novaRings) {
+      game.novaRings.push({
+        x: player.x,
+        y: player.y,
+        r: 10,
+        maxR: Math.max(WORLD_WIDTH, WORLD_HEIGHT),
+        alpha: 1.0,
+        lifespan: 0.75
+      });
+    }
+
+    // Sparkle electromagnetic particles around player
+    for (let i = 0; i < 26; i++) {
+      const pAngle = Math.random() * Math.PI * 2;
+      const pSpeed = 90 + Math.random() * 180;
+      particles.push({
+        x: player.x,
+        y: player.y,
+        vx: Math.cos(pAngle) * pSpeed,
+        vy: Math.sin(pAngle) * pSpeed,
+        color: i % 2 === 0 ? '#00f0ff' : '#ff0055',
+        lifespan: 0.45 + Math.random() * 0.35,
+        alpha: 1.0,
+        size: 3 + Math.random() * 3
+      });
+    }
+  }
+
+  draw(ctx) {
+    ctx.save();
+    ctx.translate(this.x, this.y + Math.sin(this.floatTimer) * 4);
+
+    // Glowing cyan / magnetic aura
+    const pulseScale = 1 + Math.sin(this.pulseTimer) * 0.22;
+    ctx.shadowBlur = 18;
+    ctx.shadowColor = '#00f0ff';
+
+    // Pulsing outer magnetic flux ring
+    ctx.strokeStyle = 'rgba(0, 240, 255, 0.45)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(0, 0, (this.radius + 6) * pulseScale, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Secondary pulsating counter-ring
+    ctx.strokeStyle = 'rgba(255, 0, 85, 0.35)';
+    ctx.beginPath();
+    ctx.arc(0, 0, (this.radius + 3) * (2.1 - pulseScale), 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Draw stylized Horseshoe Magnet
+    ctx.lineWidth = 4.5;
+    ctx.lineCap = 'butt';
+
+    // Upper curve (cyan / neutral body)
+    ctx.strokeStyle = '#00f0ff';
+    ctx.beginPath();
+    ctx.arc(0, 2, 10, Math.PI, 0, false);
+    ctx.stroke();
+
+    // Left arm (Red / North Pole)
+    ctx.strokeStyle = '#ff0055';
+    ctx.beginPath();
+    ctx.moveTo(-10, 2);
+    ctx.lineTo(-10, -9);
+    ctx.stroke();
+
+    // Right arm (Cyan / South Pole)
+    ctx.strokeStyle = '#00f0ff';
+    ctx.beginPath();
+    ctx.moveTo(10, 2);
+    ctx.lineTo(10, -9);
+    ctx.stroke();
+
+    // Silver/White Pole Tips
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(-12.5, -12, 5, 3.5);
+    ctx.fillRect(7.5, -12, 5, 3.5);
+
+    // Center pulsating energy core
+    ctx.fillStyle = '#00f0ff';
+    ctx.shadowBlur = 12;
+    ctx.shadowColor = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(0, 2, 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Pole labels 'N' and 'S'
+    ctx.font = '900 7px Orbitron, sans-serif';
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('N', -10, -3);
+    ctx.fillText('S', 10, -3);
+
+    ctx.restore();
+  }
+}
+
 class XpGem {
   constructor(x, y, value) {
     this.x = x;
@@ -2106,19 +2290,26 @@ class XpGem {
     this.radius = Math.min(8, 3.5 + value * 0.8);
     this.markedForDeletion = false;
     this.color = value >= 8 ? '#00f0ff' : (value >= 3 ? '#9d4edd' : '#00ff88');
+    this.vacuumed = false;
   }
 
   update(dt, player) {
     const dist = Math.hypot(player.x - this.x, player.y - this.y);
 
-    if (dist <= player.magnetRadius) {
+    if (this.vacuumed) {
+      const angle = Math.atan2(player.y - this.y, player.x - this.x);
+      // High-speed homing velocity accelerating as distance increases so distant orbs arrive swiftly
+      const magnetSpeed = Math.max(750, dist * 3.8);
+      this.x += Math.cos(angle) * magnetSpeed * dt;
+      this.y += Math.sin(angle) * magnetSpeed * dt;
+    } else if (dist <= player.magnetRadius) {
       const angle = Math.atan2(player.y - this.y, player.x - this.x);
       const magnetSpeed = 340 + (player.magnetRadius - dist) * 1.5;
       this.x += Math.cos(angle) * magnetSpeed * dt;
       this.y += Math.sin(angle) * magnetSpeed * dt;
     }
 
-    if (dist < player.radius + this.radius) {
+    if (dist < player.radius + this.radius || (this.vacuumed && dist < 28)) {
       this.markedForDeletion = true;
       player.addXP(this.value);
     }
@@ -2126,8 +2317,8 @@ class XpGem {
 
   draw(ctx) {
     ctx.save();
-    ctx.shadowBlur = 8;
-    ctx.shadowColor = this.color;
+    ctx.shadowBlur = this.vacuumed ? 14 : 8;
+    ctx.shadowColor = this.vacuumed ? '#00f0ff' : this.color;
     ctx.fillStyle = this.color;
 
     ctx.beginPath();
@@ -2190,6 +2381,7 @@ const game = {
   gems: [],
   artifacts: [],
   healthDrops: [],
+  superMagnets: [],
   lightningBolts: [],
   novaRings: [],
   spawnTimer: 0,
@@ -2285,6 +2477,7 @@ function initGame(showStartModal = true) {
   game.gems = [];
   game.artifacts = [];
   game.healthDrops = [];
+  game.superMagnets = [];
   game.lightningBolts = [];
   game.novaRings = [];
   particles.length = 0;
@@ -3472,6 +3665,18 @@ function drawMinimap(ctx) {
     }
   }
 
+  // Draw Super Magnets on radar
+  if (game.superMagnets) {
+    for (const m of game.superMagnets) {
+      ctx.fillStyle = '#00f0ff';
+      ctx.shadowBlur = 6;
+      ctx.shadowColor = '#00f0ff';
+      ctx.beginPath();
+      ctx.arc(mapX + m.x * scaleX, mapY + m.y * scaleY, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
   // Draw Bosses on radar
   for (const e of game.enemies) {
     if (e.isBoss) {
@@ -3611,6 +3816,17 @@ function gameLoop(timestamp) {
       }
     }
 
+    // Update Super Magnets
+    if (game.superMagnets) {
+      for (let i = game.superMagnets.length - 1; i >= 0; i--) {
+        const m = game.superMagnets[i];
+        m.update(dt, game.player);
+        if (m.collected) {
+          game.superMagnets.splice(i, 1);
+        }
+      }
+    }
+
     // Update Lightning Visual Effects
     for (let i = game.lightningBolts.length - 1; i >= 0; i--) {
       const b = game.lightningBolts[i];
@@ -3680,6 +3896,11 @@ function gameLoop(timestamp) {
   // Draw Health Drops
   if (game.healthDrops) {
     for (const h of game.healthDrops) h.draw(ctx);
+  }
+
+  // Draw Super Magnets
+  if (game.superMagnets) {
+    for (const m of game.superMagnets) m.draw(ctx);
   }
 
   // Draw Boss Artifacts
