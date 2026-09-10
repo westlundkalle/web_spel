@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CYBER SURVIVOR: AI Bullet Heaven</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=20260910_05">
+  <link rel="stylesheet" href="/static/css/style.css?v=20260910_08">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
@@ -58,6 +58,7 @@
           <span id="kills-display" class="hud-val">0</span>
         </div>
         <div class="system-controls">
+          <button id="aim-mode-btn" class="btn-icon" title="Toggle Aim Subsystem: Auto / Mouse [T]">🎯</button>
           <button id="pause-btn" class="btn-icon" title="Pause / Resume Game [P / ESC]">⏸️</button>
           <button id="quit-btn" class="btn-icon" title="Abandon Run / Quit to Results [Q]">🛑</button>
           <button id="leaderboard-btn" class="btn-icon" title="Global All-Time Leaderboard">🏆</button>
@@ -112,9 +113,9 @@
       <!-- Controls hint banner -->
       <div class="controls-hint">
         <span>[W][A][S][D] Move</span> &bull;
+        <span>[T] Aim: <b id="hint-aim-mode" style="color: var(--accent-cyan); font-weight: 700;">AUTO</b></span> &bull;
         <span>[P]/[ESC] Pause</span> &bull;
         <span>[Q] Quit</span> &bull;
-        <span>Blaster Auto-Targets</span> &bull;
         <span>Collect Blue Nanite Orbs</span>
       </div>
 
@@ -269,6 +270,15 @@
           </div>
         </div>
 
+        <!-- Aim Mode Selection in Pause Modal -->
+        <div class="pause-aim-selection" style="margin: 14px 0 10px; padding: 10px; background: rgba(0, 240, 255, 0.05); border: 1px solid rgba(0, 240, 255, 0.2); border-radius: 6px;">
+          <div style="font-family: var(--font-display); font-size: 10px; font-weight: 700; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 8px;">TARGETING SUBSYSTEM [HOTKEY: T]</div>
+          <div style="display: flex; gap: 8px; justify-content: center;">
+            <button id="pause-aim-auto-btn" class="aim-select-btn active">🎯 AUTO AIM</button>
+            <button id="pause-aim-mouse-btn" class="aim-select-btn">🖱️ MOUSE AIM</button>
+          </div>
+        </div>
+
         <div class="pause-actions" style="display: flex; flex-direction: column; gap: 8px; margin-top: 6px;">
           <button id="resume-btn" class="btn-restart" style="width: 100%;">▶ RESUME SIMULATION [ESC / P]</button>
           <button id="pause-quit-btn" class="btn-abandon" style="width: 100%;">🛑 ABANDON SIMULATION / QUIT [Q]</button>
@@ -277,6 +287,6 @@
     </div>
   </div>
 
-  <script src="/static/js/game.js?v=20260910_07"></script>
+  <script src="/static/js/game.js?v=20260910_08"></script>
 </body>
 </html>

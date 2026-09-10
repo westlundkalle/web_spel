@@ -109,6 +109,13 @@ const pauseScoreVal = document.getElementById('pause-score-val');
 const pauseKillsVal = document.getElementById('pause-kills-val');
 const pauseLevelVal = document.getElementById('pause-level-val');
 
+// Tactical Aim Subsystem DOM Elements
+const aimModeBtn = document.getElementById('aim-mode-btn');
+const hintAimMode = document.getElementById('hint-aim-mode');
+const pauseAimAutoBtn = document.getElementById('pause-aim-auto-btn');
+const pauseAimMouseBtn = document.getElementById('pause-aim-mouse-btn');
+const AIM_MODE_STORAGE_KEY = 'cyber_survivor_aim_mode';
+
 // Left-Side Hostile Intel Spawn Panel DOM Elements
 const enemySpawnPanel = document.getElementById('enemy-spawn-panel');
 const enemySpawnPill = document.getElementById('enemy-spawn-pill');
@@ -480,6 +487,47 @@ const keys = {
   ArrowUp: false, ArrowLeft: false, ArrowDown: false, ArrowRight: false
 };
 
+// Tactical Aim Subsystem: Mouse Tracking in Canvas & World Space
+const mouse = {
+  canvasX: canvas.width / 2,
+  canvasY: canvas.height / 2,
+  worldX: WORLD_WIDTH / 2,
+  worldY: WORLD_HEIGHT / 2,
+  isDown: false,
+  isOnCanvas: false
+};
+
+function updateMouseWorldPos() {
+  mouse.worldX = camera.x + mouse.canvasX / camera.zoom;
+  mouse.worldY = camera.y + mouse.canvasY / camera.zoom;
+}
+
+canvas.addEventListener('mousemove', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  mouse.canvasX = (e.clientX - rect.left) * scaleX;
+  mouse.canvasY = (e.clientY - rect.top) * scaleY;
+  mouse.isOnCanvas = true;
+  updateMouseWorldPos();
+});
+
+canvas.addEventListener('mousedown', (e) => {
+  if (e.button === 0) mouse.isDown = true;
+});
+
+window.addEventListener('mouseup', (e) => {
+  if (e.button === 0) mouse.isDown = false;
+});
+
+canvas.addEventListener('mouseleave', () => {
+  mouse.isOnCanvas = false;
+});
+
+canvas.addEventListener('mouseenter', () => {
+  mouse.isOnCanvas = true;
+});
+
 window.addEventListener('keydown', (e) => {
   if (e.code === 'KeyP' || e.code === 'Escape') {
     const active = document.activeElement;
@@ -501,6 +549,15 @@ window.addEventListener('keydown', (e) => {
       return;
     }
     quitCurrentRun();
+    return;
+  }
+
+  if (e.code === 'KeyT') {
+    const active = document.activeElement;
+    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
+      return;
+    }
+    toggleAimMode();
     return;
   }
 
@@ -696,31 +753,40 @@ class Player {
   }
 
   autoAttack(enemies, projectiles) {
-    if (enemies.length === 0) return;
+    let targetAngle = null;
 
-    let closestEnemy = null;
-    let closestDist = Infinity;
+    if (game && game.aimMode === 'mouse') {
+      // Manual Mouse Aiming: Shoot towards cursor world coordinates
+      targetAngle = Math.atan2(mouse.worldY - this.y, mouse.worldX - this.x);
+    } else {
+      // Auto Aiming: Lock onto nearest hostile within targeting range
+      if (enemies.length === 0) return;
+      let closestEnemy = null;
+      let closestDist = Infinity;
 
-    for (const enemy of enemies) {
-      if (enemy.markedForDeletion) continue;
-      const dist = Math.hypot(enemy.x - this.x, enemy.y - this.y);
-      if (dist < closestDist && dist <= this.targetingRange) {
-        closestDist = dist;
-        closestEnemy = enemy;
+      for (const enemy of enemies) {
+        if (enemy.markedForDeletion) continue;
+        const dist = Math.hypot(enemy.x - this.x, enemy.y - this.y);
+        if (dist < closestDist && dist <= this.targetingRange) {
+          closestDist = dist;
+          closestEnemy = enemy;
+        }
+      }
+      if (closestEnemy) {
+        targetAngle = Math.atan2(closestEnemy.y - this.y, closestEnemy.x - this.x);
       }
     }
 
-    if (closestEnemy) {
+    if (targetAngle !== null) {
       sounds.playShoot();
-      const baseAngle = Math.atan2(closestEnemy.y - this.y, closestEnemy.x - this.x);
       const count = Math.max(1, Math.min(16, Math.round(Number(this.projectileCount)) || 1));
       const safeDmg = Math.max(5, (Number(this.damageMult) || 1.0) * 25);
 
       if (count === 1) {
-        projectiles.push(new Projectile(this.x, this.y, baseAngle, safeDmg, this.pierceCount));
+        projectiles.push(new Projectile(this.x, this.y, targetAngle, safeDmg, this.pierceCount));
       } else {
         const spreadArc = Math.min(Math.PI * 0.75, 0.22 * (count - 1));
-        const startAngle = baseAngle - spreadArc / 2;
+        const startAngle = targetAngle - spreadArc / 2;
         const step = spreadArc / (count - 1);
         for (let i = 0; i < count; i++) {
           const angle = startAngle + i * step;
@@ -2055,9 +2121,19 @@ function createDamageNumber(x, y, text, color) {
   });
 }
 
+// Aim mode persistence (Defaults to 'auto')
+let initialAimMode = 'auto';
+try {
+  const storedAim = localStorage.getItem(AIM_MODE_STORAGE_KEY);
+  if (storedAim === 'mouse' || storedAim === 'auto') {
+    initialAimMode = storedAim;
+  }
+} catch (e) {}
+
 // --- Game State Manager ---
 const game = {
   player: null,
+  aimMode: initialAimMode,
   projectiles: [],
   enemyProjectiles: [],
   enemies: [],
@@ -2077,6 +2153,41 @@ const game = {
   state: 'PLAYING',
   lastTimestamp: 0
 };
+
+function setAimMode(mode) {
+  if (mode !== 'auto' && mode !== 'mouse') mode = 'auto';
+  game.aimMode = mode;
+  try {
+    localStorage.setItem(AIM_MODE_STORAGE_KEY, mode);
+  } catch (e) {}
+  updateAimModeUI();
+}
+
+function toggleAimMode() {
+  setAimMode(game.aimMode === 'mouse' ? 'auto' : 'mouse');
+}
+
+function updateAimModeUI() {
+  const isMouse = game.aimMode === 'mouse';
+  if (hintAimMode) {
+    hintAimMode.textContent = isMouse ? 'MOUSE' : 'AUTO';
+    hintAimMode.style.color = isMouse ? '#ff9100' : 'var(--accent-cyan)';
+  }
+  if (aimModeBtn) {
+    aimModeBtn.classList.toggle('active', isMouse);
+    aimModeBtn.title = isMouse
+      ? 'Aim Subsystem: MOUSE [T] (Click or press T for Auto Aim)'
+      : 'Aim Subsystem: AUTO [T] (Click or press T for Mouse Aim)';
+    aimModeBtn.textContent = isMouse ? '🖱️' : '🎯';
+  }
+  if (pauseAimAutoBtn && pauseAimMouseBtn) {
+    pauseAimAutoBtn.classList.toggle('active', !isMouse);
+    pauseAimMouseBtn.classList.toggle('active', isMouse);
+  }
+  if (canvas) {
+    canvas.style.cursor = isMouse ? 'crosshair' : 'default';
+  }
+}
 
 function initGame() {
   game.player = new Player(WORLD_WIDTH / 2, WORLD_HEIGHT / 2);
@@ -2118,6 +2229,7 @@ function initGame() {
 
   lastSpawnPanelUpdateSec = -1;
   updateEnemySpawnPanel(true);
+  updateAimModeUI();
   updateHUD();
 }
 
@@ -2877,6 +2989,7 @@ function togglePause(forcePause = null) {
       if (pauseKillsVal) pauseKillsVal.textContent = game.kills;
       if (pauseLevelVal && game.player) pauseLevelVal.textContent = game.player.level;
       if (pauseModal) pauseModal.classList.remove('hidden');
+      updateAimModeUI();
       if (pauseBtn) {
         pauseBtn.textContent = '▶️';
         pauseBtn.classList.add('active');
@@ -3066,6 +3179,20 @@ if (resumeBtn) resumeBtn.addEventListener('click', () => togglePause(false));
 if (quitBtn) quitBtn.addEventListener('click', quitCurrentRun);
 if (pauseQuitBtn) pauseQuitBtn.addEventListener('click', quitCurrentRun);
 
+// Tactical Aim Subsystem button click listeners
+if (aimModeBtn) {
+  aimModeBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleAimMode();
+  });
+}
+if (pauseAimAutoBtn) {
+  pauseAimAutoBtn.addEventListener('click', () => setAimMode('auto'));
+}
+if (pauseAimMouseBtn) {
+  pauseAimMouseBtn.addEventListener('click', () => setAimMode('mouse'));
+}
+
 // Hostile Intel Spawn Panel event listeners
 if (spawnPanelToggle && enemySpawnPanel && enemySpawnPill) {
   spawnPanelToggle.addEventListener('click', (e) => {
@@ -3253,6 +3380,7 @@ function gameLoop(timestamp) {
     // Update Player & Camera
     game.player.update(dt, game.enemies, game.projectiles);
     camera.update(game.player);
+    updateMouseWorldPos();
 
     // Update Player Projectiles
     for (let i = game.projectiles.length - 1; i >= 0; i--) {
@@ -3464,6 +3592,9 @@ function gameLoop(timestamp) {
     ctx.restore();
   }
 
+  // Holographic Manual Aim Reticle & Laser Sight (World Space)
+  drawMouseReticle(ctx);
+
   // End Camera Translation
   ctx.restore();
 
@@ -3472,6 +3603,66 @@ function gameLoop(timestamp) {
   drawMinimap(ctx);
 
   requestAnimationFrame(gameLoop);
+}
+
+// Tactical Holographic Reticle & Laser Sight for Mouse Aiming
+function drawMouseReticle(ctx) {
+  if (game.aimMode !== 'mouse' || game.state !== 'PLAYING' || !game.player) return;
+
+  const px = game.player.x;
+  const py = game.player.y;
+  const mx = mouse.worldX;
+  const my = mouse.worldY;
+
+  ctx.save();
+
+  // 1. Subtle Laser Aiming Sight
+  ctx.strokeStyle = 'rgba(0, 240, 255, 0.25)';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([6, 6]);
+  ctx.beginPath();
+  ctx.moveTo(px, py);
+  ctx.lineTo(mx, my);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // 2. Holographic Rotating Crosshair Reticle at Cursor Location
+  ctx.translate(mx, my);
+  const spin = (Date.now() / 600) % (Math.PI * 2);
+  ctx.rotate(spin);
+
+  ctx.strokeStyle = '#00f0ff';
+  ctx.shadowColor = '#00f0ff';
+  ctx.shadowBlur = 10;
+  ctx.lineWidth = 1.6;
+
+  // Segmented Outer Targeting Ring
+  const segments = 4;
+  for (let i = 0; i < segments; i++) {
+    const arcStart = i * (Math.PI / 2) + 0.15;
+    const arcEnd = (i + 1) * (Math.PI / 2) - 0.15;
+    ctx.beginPath();
+    ctx.arc(0, 0, 16, arcStart, arcEnd);
+    ctx.stroke();
+  }
+
+  // Crosshair pips
+  ctx.beginPath();
+  ctx.moveTo(-11, 0); ctx.lineTo(-4, 0);
+  ctx.moveTo(4, 0);   ctx.lineTo(11, 0);
+  ctx.moveTo(0, -11); ctx.lineTo(0, -4);
+  ctx.moveTo(0, 4);   ctx.lineTo(0, 11);
+  ctx.stroke();
+
+  // High-visibility amber focal center dot
+  ctx.fillStyle = '#ff9100';
+  ctx.shadowColor = '#ff9100';
+  ctx.shadowBlur = 8;
+  ctx.beginPath();
+  ctx.arc(0, 0, 2.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
 }
 
 // Off-screen HUD Directional Pointer for Boss Artifacts
@@ -3529,5 +3720,6 @@ function drawBossArtifactPointers(ctx) {
 }
 
 // Start game
+updateAimModeUI();
 initGame();
 requestAnimationFrame(gameLoop);
