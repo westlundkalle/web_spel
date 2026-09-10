@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CYBER SURVIVOR: AI Bullet Heaven</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=20260909_10">
+  <link rel="stylesheet" href="/static/css/style.css?v=20260910_05">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
@@ -72,6 +72,33 @@
     <!-- Canvas Container -->
     <main class="canvas-container">
       <canvas id="gameCanvas" width="960" height="640"></canvas>
+
+      <!-- Left-Side Hostile Spawn Intel Panel (Ultra Boss Excluded) -->
+      <aside id="enemy-spawn-panel" class="enemy-spawn-panel">
+        <div class="spawn-panel-header">
+          <div class="spawn-panel-title">
+            <span class="radar-dot"></span>
+            <span>HOSTILE INTEL</span>
+          </div>
+          <button id="spawn-panel-toggle" class="spawn-panel-toggle" title="Collapse / Expand Panel">◀</button>
+        </div>
+
+        <div class="spawn-panel-tabs">
+          <button id="tab-spawn-active" class="spawn-tab active" data-tab="active">CAN SPAWN (<span id="spawn-active-count">2</span>)</button>
+          <button id="tab-spawn-all" class="spawn-tab" data-tab="all">ROSTER (<span id="spawn-total-count">8</span>)</button>
+        </div>
+
+        <div id="enemy-spawn-list" class="enemy-spawn-list">
+          <!-- Populated dynamically by JS -->
+        </div>
+      </aside>
+
+      <!-- Minimized Spawn Panel Pill (when collapsed) -->
+      <button id="enemy-spawn-pill" class="enemy-spawn-pill hidden" title="Expand Hostile Intel Panel">
+        <span class="radar-dot"></span>
+        <span class="pill-text">HOSTILES (<span id="pill-active-count">2</span>)</span>
+        <span class="pill-arrow">▶</span>
+      </button>
       
       <!-- In-game AI Event / Boss Alert Banner -->
       <div id="event-banner" class="event-banner hidden">
@@ -250,6 +277,6 @@
     </div>
   </div>
 
-  <script src="/static/js/game.js?v=20260910_04"></script>
+  <script src="/static/js/game.js?v=20260910_05"></script>
 </body>
 </html>

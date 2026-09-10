@@ -1090,3 +1090,264 @@ body {
   border-color: #ff0055;
   box-shadow: 0 0 10px rgba(255, 0, 85, 0.6);
 }
+
+/* Left-Side Hostile Spawn Intel Panel */
+.enemy-spawn-panel {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  width: 195px;
+  max-height: 480px;
+  background: rgba(8, 12, 24, 0.88);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 240, 255, 0.28);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65), inset 0 0 15px rgba(0, 240, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  z-index: 40;
+  pointer-events: auto;
+  user-select: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.spawn-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  background: rgba(0, 240, 255, 0.06);
+  border-bottom: 1px solid rgba(0, 240, 255, 0.2);
+  border-radius: 7px 7px 0 0;
+}
+
+.spawn-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+  color: #fff;
+  text-shadow: 0 0 6px rgba(0, 240, 255, 0.4);
+}
+
+.radar-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #00ff88;
+  box-shadow: 0 0 8px #00ff88;
+  animation: radarDotPulse 1.6s infinite ease-in-out;
+}
+
+@keyframes radarDotPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.75); }
+}
+
+.spawn-panel-toggle {
+  background: rgba(0, 240, 255, 0.08);
+  border: 1px solid rgba(0, 240, 255, 0.25);
+  color: var(--accent-cyan);
+  border-radius: 4px;
+  width: 20px;
+  height: 20px;
+  font-size: 9px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.spawn-panel-toggle:hover {
+  background: rgba(0, 240, 255, 0.25);
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 8px var(--accent-cyan);
+}
+
+.spawn-panel-tabs {
+  display: flex;
+  padding: 5px 8px;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.25);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.spawn-tab {
+  flex: 1;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  padding: 4px 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: center;
+}
+
+.spawn-tab:hover {
+  color: #fff;
+  border-color: rgba(0, 240, 255, 0.4);
+}
+
+.spawn-tab.active {
+  background: rgba(0, 240, 255, 0.16);
+  border-color: var(--accent-cyan);
+  color: #fff;
+  box-shadow: 0 0 8px rgba(0, 240, 255, 0.25);
+}
+
+.enemy-spawn-list {
+  padding: 6px 8px;
+  overflow-y: auto;
+  max-height: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+/* Scrollbar styling for spawn list */
+.enemy-spawn-list::-webkit-scrollbar {
+  width: 4px;
+}
+.enemy-spawn-list::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+}
+.enemy-spawn-list::-webkit-scrollbar-thumb {
+  background: rgba(0, 240, 255, 0.3);
+  border-radius: 2px;
+}
+
+.enemy-spawn-card {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 6px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 5px;
+  transition: all 0.2s ease;
+}
+
+.enemy-spawn-card.active {
+  background: rgba(0, 240, 255, 0.04);
+  border-left-width: 3px;
+}
+
+.enemy-spawn-card.locked {
+  opacity: 0.45;
+  filter: grayscale(40%);
+}
+
+.enemy-card-icon-wrap {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.enemy-card-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.enemy-card-name {
+  font-family: var(--font-display);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.enemy-card-role {
+  font-family: var(--font-body);
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.1;
+}
+
+.enemy-card-status {
+  flex-shrink: 0;
+}
+
+.badge-status {
+  font-family: var(--font-display);
+  font-size: 7.5px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  padding: 2px 5px;
+  border-radius: 10px;
+  display: inline-block;
+}
+
+.badge-status.active {
+  color: #00ff88;
+  background: rgba(0, 255, 136, 0.12);
+  border: 1px solid rgba(0, 255, 136, 0.35);
+  text-shadow: 0 0 6px rgba(0, 255, 136, 0.4);
+}
+
+.badge-status.locked {
+  color: var(--accent-yellow);
+  background: rgba(255, 230, 0, 0.1);
+  border: 1px solid rgba(255, 230, 0, 0.25);
+}
+
+/* Collapsed Pill Button */
+.enemy-spawn-pill {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 10px;
+  background: rgba(8, 12, 24, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  border-radius: 14px;
+  cursor: pointer;
+  z-index: 40;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.enemy-spawn-pill:hover {
+  background: rgba(0, 240, 255, 0.18);
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
+}
+
+.pill-text {
+  font-family: var(--font-display);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #fff;
+}
+
+.pill-arrow {
+  font-size: 8px;
+  color: var(--accent-cyan);
+}
+

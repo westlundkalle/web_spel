@@ -106,6 +106,88 @@ const pauseScoreVal = document.getElementById('pause-score-val');
 const pauseKillsVal = document.getElementById('pause-kills-val');
 const pauseLevelVal = document.getElementById('pause-level-val');
 
+// Left-Side Hostile Intel Spawn Panel DOM Elements
+const enemySpawnPanel = document.getElementById('enemy-spawn-panel');
+const enemySpawnPill = document.getElementById('enemy-spawn-pill');
+const spawnPanelToggle = document.getElementById('spawn-panel-toggle');
+const enemySpawnList = document.getElementById('enemy-spawn-list');
+const tabSpawnActive = document.getElementById('tab-spawn-active');
+const tabSpawnAll = document.getElementById('tab-spawn-all');
+const spawnActiveCount = document.getElementById('spawn-active-count');
+const spawnTotalCount = document.getElementById('spawn-total-count');
+const pillActiveCount = document.getElementById('pill-active-count');
+
+let currentSpawnTab = 'active'; // 'active' or 'all'
+let lastSpawnPanelUpdateSec = -1;
+
+// Hostile Roster (Normal wave spawn pool - Ultra Boss strictly excluded)
+const ENEMY_SPAWN_ROSTER = [
+  {
+    id: 'swarmer',
+    name: 'SWARMER',
+    unlockSec: 0,
+    color: '#ff3366',
+    role: 'Swarm Drone',
+    svg: '<svg width="20" height="20" viewBox="0 0 24 24"><polygon points="20,12 4,5 9,12 4,19" fill="#ff3366"/><circle cx="12" cy="12" r="2" fill="#ffe600"/></svg>'
+  },
+  {
+    id: 'striker',
+    name: 'STRIKER',
+    unlockSec: 0,
+    color: '#9d4edd',
+    role: 'Interceptor',
+    svg: '<svg width="20" height="20" viewBox="0 0 24 24"><polygon points="12,2 15,9 22,12 15,15 12,22 9,15 2,12 9,9" fill="#9d4edd"/><circle cx="12" cy="12" r="2.5" fill="#ffffff"/></svg>'
+  },
+  {
+    id: 'dreadnought',
+    name: 'DREADNOUGHT',
+    unlockSec: 24, // > 0.4 min
+    color: '#ff9100',
+    role: 'Armored Cruiser',
+    svg: '<svg width="20" height="20" viewBox="0 0 24 24"><polygon points="12,2 21,7 21,17 12,22 3,17 3,7" fill="#ff9100"/><polygon points="12,6 17,9.5 17,14.5 12,18 7,14.5 7,9.5" fill="#121926"/><circle cx="12" cy="12" r="2" fill="#ffe600"/></svg>'
+  },
+  {
+    id: 'viper',
+    name: 'VIPER',
+    unlockSec: 60, // 1.0 min
+    color: '#00f0ff',
+    role: 'Stealth Dart',
+    svg: '<svg width="20" height="20" viewBox="0 0 24 24"><polygon points="22,12 3,3 8,12 3,21" fill="#00f0ff"/><circle cx="11" cy="12" r="2" fill="#ffffff"/></svg>'
+  },
+  {
+    id: 'bombard',
+    name: 'BOMBARD',
+    unlockSec: 120, // 2.0 min
+    color: '#39ff14',
+    role: 'Artillery Drone',
+    svg: '<svg width="20" height="20" viewBox="0 0 24 24"><polygon points="12,2 21,9 18,21 6,21 3,9" fill="#39ff14"/><circle cx="12" cy="13" r="4.5" fill="#0a230a"/><circle cx="12" cy="13" r="2" fill="#ffffff"/></svg>'
+  },
+  {
+    id: 'hydra',
+    name: 'HYDRA',
+    unlockSec: 180, // 3.0 min
+    color: '#b5179e',
+    role: 'Bio-Star Host',
+    svg: '<svg width="20" height="20" viewBox="0 0 24 24"><polygon points="12,2 14,8 20,4 16,10 22,12 16,14 20,20 14,16 12,22 10,16 4,20 8,14 2,12 8,10 4,4 10,8" fill="#b5179e"/><circle cx="12" cy="12" r="2.5" fill="#e0aaff"/></svg>'
+  },
+  {
+    id: 'phantom',
+    name: 'PHANTOM',
+    unlockSec: 240, // 4.0 min
+    color: '#ffd700',
+    role: 'Phase Warper',
+    svg: '<svg width="20" height="20" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="#ffd700" stroke-width="2" stroke-dasharray="3,2"/><circle cx="12" cy="12" r="4" fill="#ffd700"/><circle cx="12" cy="12" r="1.5" fill="#ffffff"/></svg>'
+  },
+  {
+    id: 'devourer',
+    name: 'DEVOURER',
+    unlockSec: 300, // 5.0 min
+    color: '#e63946',
+    role: 'Apex Leviathan',
+    svg: '<svg width="20" height="20" viewBox="0 0 24 24"><polygon points="12,2 22,8 19,16 12,22 5,16 2,8" fill="#e63946"/><polygon points="12,7 17,11 15,16 12,19 9,16 7,11" fill="#200407"/><circle cx="12" cy="12" r="2" fill="#ff4d6d"/></svg>'
+  }
+];
+
 const CALLSIGN_STORAGE_KEY = 'cyber_survivor_callsign';
 
 // --- Helper Functions ---
@@ -1812,6 +1894,8 @@ function initGame() {
   }
   gameOverModal.classList.add('hidden');
 
+  lastSpawnPanelUpdateSec = -1;
+  updateEnemySpawnPanel(true);
   updateHUD();
 }
 
@@ -1997,6 +2081,58 @@ function updateHUD() {
   if (topScoreDisplay) topScoreDisplay.textContent = playerTopScore;
   scoreDisplay.textContent = game.score;
   killsDisplay.textContent = game.kills;
+
+  // Real-time update for Left-Side Hostile Intel Panel
+  updateEnemySpawnPanel();
+}
+
+// Render & update Left-Side Hostile Intel Panel (Ultra Boss strictly excluded)
+function updateEnemySpawnPanel(force = false) {
+  if (!enemySpawnList) return;
+  const currentSec = Math.floor(game.survivalTime);
+  if (!force && currentSec === lastSpawnPanelUpdateSec) return;
+  lastSpawnPanelUpdateSec = currentSec;
+
+  let activeCount = 0;
+  const items = [];
+
+  for (const enemy of ENEMY_SPAWN_ROSTER) {
+    const isUnlocked = currentSec >= enemy.unlockSec;
+    if (isUnlocked) activeCount++;
+
+    if (currentSpawnTab === 'active' && !isUnlocked) {
+      continue;
+    }
+
+    const formatUnlockTime = (sec) => {
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      return `@ ${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    };
+
+    const statusBadge = isUnlocked
+      ? `<span class="badge-status active">CAN SPAWN</span>`
+      : `<span class="badge-status locked">${formatUnlockTime(enemy.unlockSec)}</span>`;
+
+    const cardClass = isUnlocked ? 'enemy-spawn-card active' : 'enemy-spawn-card locked';
+    const borderStyle = isUnlocked ? `border-left-color: ${enemy.color};` : '';
+
+    items.push(`
+      <div class="${cardClass}" style="${borderStyle}">
+        <div class="enemy-card-icon-wrap">${enemy.svg}</div>
+        <div class="enemy-card-info">
+          <div class="enemy-card-name" style="color: ${enemy.color};">${enemy.name}</div>
+          <div class="enemy-card-role">${enemy.role}</div>
+        </div>
+        <div class="enemy-card-status">${statusBadge}</div>
+      </div>
+    `);
+  }
+
+  enemySpawnList.innerHTML = items.join('');
+  if (spawnActiveCount) spawnActiveCount.textContent = activeCount;
+  if (spawnTotalCount) spawnTotalCount.textContent = ENEMY_SPAWN_ROSTER.length;
+  if (pillActiveCount) pillActiveCount.textContent = activeCount;
 }
 
 // --- Upgrade System & AI API Integration ---
@@ -2677,6 +2813,48 @@ if (pauseBtn) pauseBtn.addEventListener('click', () => togglePause());
 if (resumeBtn) resumeBtn.addEventListener('click', () => togglePause(false));
 if (quitBtn) quitBtn.addEventListener('click', quitCurrentRun);
 if (pauseQuitBtn) pauseQuitBtn.addEventListener('click', quitCurrentRun);
+
+// Hostile Intel Spawn Panel event listeners
+if (spawnPanelToggle && enemySpawnPanel && enemySpawnPill) {
+  spawnPanelToggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    enemySpawnPanel.classList.add('hidden');
+    enemySpawnPill.classList.remove('hidden');
+  });
+
+  enemySpawnPill.addEventListener('click', (e) => {
+    e.stopPropagation();
+    enemySpawnPill.classList.add('hidden');
+    enemySpawnPanel.classList.remove('hidden');
+    updateEnemySpawnPanel(true);
+  });
+}
+
+if (tabSpawnActive && tabSpawnAll) {
+  tabSpawnActive.addEventListener('click', (e) => {
+    e.stopPropagation();
+    currentSpawnTab = 'active';
+    tabSpawnActive.classList.add('active');
+    tabSpawnAll.classList.remove('active');
+    updateEnemySpawnPanel(true);
+  });
+
+  tabSpawnAll.addEventListener('click', (e) => {
+    e.stopPropagation();
+    currentSpawnTab = 'all';
+    tabSpawnAll.classList.add('active');
+    tabSpawnActive.classList.remove('active');
+    updateEnemySpawnPanel(true);
+  });
+}
+
+if (enemySpawnPanel) {
+  enemySpawnPanel.addEventListener('pointerdown', (e) => e.stopPropagation());
+  enemySpawnPanel.addEventListener('click', (e) => e.stopPropagation());
+}
+if (enemySpawnPill) {
+  enemySpawnPill.addEventListener('pointerdown', (e) => e.stopPropagation());
+}
 
 // Initialize Pilot Name in HUD and input fields
 setPilotName(getCurrentPilotName());
