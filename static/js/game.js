@@ -116,6 +116,13 @@ const pauseAimAutoBtn = document.getElementById('pause-aim-auto-btn');
 const pauseAimMouseBtn = document.getElementById('pause-aim-mouse-btn');
 const AIM_MODE_STORAGE_KEY = 'cyber_survivor_aim_mode';
 
+// Pre-Mission Deployment & Targeting Subsystem Selection DOM Elements
+const startModal = document.getElementById('start-modal');
+const startAimAutoCard = document.getElementById('start-aim-auto-card');
+const startAimMouseCard = document.getElementById('start-aim-mouse-card');
+const startAutoBtn = document.getElementById('start-auto-btn');
+const startMouseBtn = document.getElementById('start-mouse-btn');
+
 // Left-Side Hostile Intel Spawn Panel DOM Elements
 const enemySpawnPanel = document.getElementById('enemy-spawn-panel');
 const enemySpawnPill = document.getElementById('enemy-spawn-pill');
@@ -529,6 +536,35 @@ canvas.addEventListener('mouseenter', () => {
 });
 
 window.addEventListener('keydown', (e) => {
+  // Pre-Mission Deployment / Aim Mode selection state
+  if (game && game.state === 'START') {
+    const active = document.activeElement;
+    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
+      return;
+    }
+    if (e.code === 'Digit1' || e.code === 'Numpad1' || e.code === 'KeyA') {
+      startMission('auto');
+      return;
+    }
+    if (e.code === 'Digit2' || e.code === 'Numpad2' || e.code === 'KeyM') {
+      startMission('mouse');
+      return;
+    }
+    if (e.code === 'ArrowLeft' || e.code === 'ArrowUp') {
+      updateStartModalSelection('auto');
+      return;
+    }
+    if (e.code === 'ArrowRight' || e.code === 'ArrowDown') {
+      updateStartModalSelection('mouse');
+      return;
+    }
+    if (e.code === 'Space' || e.code === 'Enter') {
+      startMission(selectedStartAimMode);
+      return;
+    }
+    return;
+  }
+
   if (e.code === 'KeyP' || e.code === 'Escape') {
     const active = document.activeElement;
     if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
@@ -2150,9 +2186,37 @@ const game = {
   kills: 0,
   bossSpawnedAt: {},
   bossesDefeated: 0,
-  state: 'PLAYING',
+  state: 'START',
   lastTimestamp: 0
 };
+
+let selectedStartAimMode = initialAimMode || 'auto';
+
+function updateStartModalSelection(mode) {
+  selectedStartAimMode = (mode === 'mouse') ? 'mouse' : 'auto';
+  if (startAimAutoCard && startAimMouseCard) {
+    startAimAutoCard.classList.toggle('active', selectedStartAimMode === 'auto');
+    startAimMouseCard.classList.toggle('active', selectedStartAimMode === 'mouse');
+  }
+  if (startAutoBtn && startMouseBtn) {
+    startAutoBtn.classList.toggle('active', selectedStartAimMode === 'auto');
+    startMouseBtn.classList.toggle('active', selectedStartAimMode === 'mouse');
+  }
+}
+
+function startMission(mode) {
+  const finalMode = mode || selectedStartAimMode || 'auto';
+  setAimMode(finalMode);
+  updateStartModalSelection(finalMode);
+  if (startModal) startModal.classList.add('hidden');
+  game.state = 'PLAYING';
+  game.lastTimestamp = performance.now();
+  try {
+    sounds.init();
+    sounds.playLevelUp();
+  } catch (e) {}
+  updateHUD();
+}
 
 function setAimMode(mode) {
   if (mode !== 'auto' && mode !== 'mouse') mode = 'auto';
@@ -2189,7 +2253,7 @@ function updateAimModeUI() {
   }
 }
 
-function initGame() {
+function initGame(showStartModal = true) {
   game.player = new Player(WORLD_WIDTH / 2, WORLD_HEIGHT / 2);
   camera.x = WORLD_WIDTH / 2 - camera.width / 2;
   camera.y = WORLD_HEIGHT / 2 - camera.height / 2;
@@ -2213,7 +2277,6 @@ function initGame() {
   game.kills = 0;
   game.bossSpawnedAt = {};
   game.bossesDefeated = 0;
-  game.state = 'PLAYING';
   game.lastTimestamp = performance.now();
 
   eventBanner.classList.add('hidden');
@@ -2231,6 +2294,15 @@ function initGame() {
   updateEnemySpawnPanel(true);
   updateAimModeUI();
   updateHUD();
+
+  if (showStartModal && startModal) {
+    game.state = 'START';
+    updateStartModalSelection(game.aimMode || 'auto');
+    startModal.classList.remove('hidden');
+  } else {
+    game.state = 'PLAYING';
+    if (startModal) startModal.classList.add('hidden');
+  }
 }
 
 function spawnEnemyWave() {
@@ -2976,8 +3048,8 @@ async function fetchAndRenderLeaderboard() {
 let wasPlayingBeforeLeaderboard = false;
 
 function togglePause(forcePause = null) {
-  // Disallow pausing in game over or during level up modal
-  if (game.state === 'GAME_OVER' || game.state === 'LEVEL_UP') return;
+  // Disallow pausing in game over, start modal, or during level up modal
+  if (game.state === 'GAME_OVER' || game.state === 'LEVEL_UP' || game.state === 'START') return;
 
   const shouldPause = forcePause !== null ? forcePause : (game.state === 'PLAYING');
 
@@ -3013,7 +3085,7 @@ function togglePause(forcePause = null) {
 }
 
 function quitCurrentRun() {
-  if (game.state === 'GAME_OVER') return;
+  if (game.state === 'GAME_OVER' || game.state === 'START') return;
   const wasPlaying = (game.state === 'PLAYING');
   if (wasPlaying) {
     togglePause(true);
@@ -3191,6 +3263,30 @@ if (pauseAimAutoBtn) {
 }
 if (pauseAimMouseBtn) {
   pauseAimMouseBtn.addEventListener('click', () => setAimMode('mouse'));
+}
+
+// Pre-Mission Deployment & Targeting Selection button click listeners
+if (startAimAutoCard) {
+  startAimAutoCard.addEventListener('click', () => {
+    startMission('auto');
+  });
+}
+if (startAutoBtn) {
+  startAutoBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    startMission('auto');
+  });
+}
+if (startAimMouseCard) {
+  startAimMouseCard.addEventListener('click', () => {
+    startMission('mouse');
+  });
+}
+if (startMouseBtn) {
+  startMouseBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    startMission('mouse');
+  });
 }
 
 // Hostile Intel Spawn Panel event listeners

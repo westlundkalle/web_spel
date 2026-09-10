@@ -1387,4 +1387,155 @@ body {
   box-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
 }
 
+/* Pre-Mission Deployment & Targeting Subsystem Selection Modal */
+.start-modal-card {
+  max-width: 720px;
+  width: 94%;
+  background: rgba(10, 14, 26, 0.94);
+  border: 2px solid rgba(0, 240, 255, 0.35);
+  box-shadow: 0 0 35px rgba(0, 240, 255, 0.25), inset 0 0 20px rgba(0, 240, 255, 0.05);
+  backdrop-filter: blur(14px);
+  padding: 24px;
+}
+
+.start-aim-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 18px 0 14px;
+}
+
+@media (max-width: 660px) {
+  .start-aim-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.start-aim-card {
+  background: rgba(14, 21, 37, 0.85);
+  border: 2px solid rgba(0, 240, 255, 0.2);
+  border-radius: 8px;
+  padding: 18px 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  user-select: none;
+}
+
+.start-aim-card:hover {
+  border-color: var(--accent-cyan);
+  background: rgba(0, 240, 255, 0.08);
+  box-shadow: 0 0 22px rgba(0, 240, 255, 0.35);
+  transform: translateY(-2px);
+}
+
+.start-aim-card.active {
+  border-color: var(--accent-cyan);
+  background: rgba(0, 240, 255, 0.12);
+  box-shadow: 0 0 28px rgba(0, 240, 255, 0.45);
+}
+
+.start-aim-card:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+}
+
+.start-aim-icon {
+  font-size: 36px;
+  margin-bottom: 6px;
+  filter: drop-shadow(0 0 8px rgba(0, 240, 255, 0.6));
+}
+
+.start-aim-title {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+  color: #ffffff;
+}
+
+.start-aim-tag {
+  font-family: var(--font-display);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--accent-cyan);
+  margin: 4px 0 10px;
+}
+
+.start-aim-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.45;
+  margin-bottom: 12px;
+  min-height: 48px;
+}
+
+.start-aim-features {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 16px;
+  text-align: left;
+  width: 100%;
+  font-size: 11px;
+  color: #c9d1d9;
+}
+
+.start-aim-features li {
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.start-aim-features li span {
+  color: var(--accent-cyan);
+  font-weight: bold;
+}
+
+.btn-start-choice {
+  width: 100%;
+  padding: 10px 14px;
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  background: rgba(0, 240, 255, 0.12);
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: auto;
+}
+
+.btn-start-choice:hover,
+.btn-start-choice.active {
+  background: var(--accent-cyan);
+  color: #070913;
+  box-shadow: 0 0 18px rgba(0, 240, 255, 0.6);
+  border-color: var(--accent-cyan);
+}
+
+.start-modal-footer {
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.start-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.4;
+}
+
+.start-hint b {
+  color: var(--accent-cyan);
+}
+
 

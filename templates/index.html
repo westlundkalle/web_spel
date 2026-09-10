@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CYBER SURVIVOR: AI Bullet Heaven</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=20260910_08">
+  <link rel="stylesheet" href="/static/css/style.css?v=20260910_09">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
@@ -128,6 +128,61 @@
         </div>
       </div>
     </main>
+
+    <!-- Pre-Mission Deployment & Targeting Subsystem Selection Modal -->
+    <div id="start-modal" class="modal-overlay">
+      <div class="modal-content start-modal-card">
+        <div class="modal-header">
+          <div class="glitch-title" data-text="TACTICAL DEPLOYMENT">TACTICAL DEPLOYMENT</div>
+          <p class="modal-subtitle">Configure ship combat mainframe &bull; Choose primary targeting subsystem</p>
+          <div class="ai-badge" style="margin-top: 6px;">⚡ MISSION BRIEFING &bull; SECTOR 01</div>
+        </div>
+
+        <div class="start-aim-grid">
+          <!-- Option 1: Auto Aim -->
+          <div id="start-aim-auto-card" class="start-aim-card active" tabindex="0">
+            <div class="start-aim-icon">🎯</div>
+            <div class="start-aim-title">AUTO-AIM ARRAY</div>
+            <div class="start-aim-tag">AUTONOMOUS COMPUTATION [KEY: 1 / A]</div>
+            <p class="start-aim-desc">
+              Automated combat AI calculates trajectories and fires at the closest hostile within 360° targeting perimeter.
+            </p>
+            <ul class="start-aim-features">
+              <li><span>✓</span> Automated threat acquisition & tracking</li>
+              <li><span>✓</span> Maximum focus on evasive maneuvers</li>
+              <li><span>✓</span> Classic bullet-heaven experience</li>
+            </ul>
+            <button id="start-auto-btn" class="btn-start-choice active">
+              LAUNCH WITH AUTO-AIM
+            </button>
+          </div>
+
+          <!-- Option 2: Mouse Aim -->
+          <div id="start-aim-mouse-card" class="start-aim-card" tabindex="0">
+            <div class="start-aim-icon">🖱️</div>
+            <div class="start-aim-title">MANUAL MOUSE AIM</div>
+            <div class="start-aim-tag">TELEMETRIC LASER SIGHT [KEY: 2 / M]</div>
+            <p class="start-aim-desc">
+              Direct primary weapon volleys towards your mouse cursor with an active holographic reticle and targeting line.
+            </p>
+            <ul class="start-aim-features">
+              <li><span>✓</span> Precision skill-shots & threat prioritization</li>
+              <li><span>✓</span> Lead moving targets & pre-fire swarms</li>
+              <li><span>✓</span> Holographic crosshair & laser sight</li>
+            </ul>
+            <button id="start-mouse-btn" class="btn-start-choice">
+              LAUNCH WITH MOUSE AIM
+            </button>
+          </div>
+        </div>
+
+        <div class="start-modal-footer">
+          <div class="start-hint">
+            <span>💡 <b>Tip:</b> Click a mode or press <b>[1]</b> / <b>[2]</b> to launch. Press <b>[SPACE / ENTER]</b> for default. Switch anytime during battle with <b>[T]</b>.</span>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- Level Up Modal (Pause game while selecting upgrade) -->
     <div id="level-up-modal" class="modal-overlay hidden">
@@ -287,6 +342,6 @@
     </div>
   </div>
 
-  <script src="/static/js/game.js?v=20260910_08"></script>
+  <script src="/static/js/game.js?v=20260910_09"></script>
 </body>
 </html>
