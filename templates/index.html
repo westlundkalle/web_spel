@@ -4,84 +4,23 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CYBER SURVIVOR: AI Bullet Heaven</title>
-  <link rel="stylesheet" href="/static/css/style.css?v=20260910_09">
+  <link rel="stylesheet" href="/static/css/style.css?v=20260910_10">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
 </head>
 <body>
   <div class="game-wrapper">
-    <!-- Top XP Bar spanning the screen -->
-    <div class="xp-bar-container">
-      <div id="xp-bar-fill" class="xp-bar-fill" style="width: 0%;"></div>
-      <div class="level-indicator">
-        <span class="level-label">LEVEL</span>
-        <span id="player-level" class="level-val">1</span>
-      </div>
-    </div>
-
-    <!-- HUD Overlay -->
-    <header class="game-hud">
-      <div class="hud-left">
-        <div class="health-container">
-          <div class="health-label">HULL INTEGRITY</div>
-          <div class="health-bar-bg">
-            <div id="health-bar-fill" class="health-bar-fill" style="width: 100%;"></div>
-            <span id="health-text" class="health-text">100 / 100</span>
-          </div>
-        </div>
-        <div id="hud-pilot-pill" class="pilot-hud-pill" title="Click to choose your Pilot Name">
-          <span class="pilot-hud-label">PILOT</span>
-          <span id="hud-pilot-display" class="pilot-hud-val">PILOT</span>
-          <span class="pilot-hud-edit">✎</span>
-        </div>
-      </div>
-
-      <div class="hud-center">
-        <div class="timer-box">
-          <span class="hud-sub">SURVIVAL TIME</span>
-          <span id="timer-display" class="hud-val">00:00</span>
-        </div>
-      </div>
-
-      <div class="hud-right">
-        <div class="stat-box">
-          <span class="hud-sub">TOP SCORE</span>
-          <span id="top-score-display" class="hud-val" style="color: var(--accent-yellow);">0</span>
-        </div>
-        <div class="stat-box">
-          <span class="hud-sub">SCORE</span>
-          <span id="score-display" class="hud-val">0</span>
-        </div>
-        <div class="stat-box">
-          <span class="hud-sub">KILLS</span>
-          <span id="kills-display" class="hud-val">0</span>
-        </div>
-        <div class="system-controls">
-          <button id="aim-mode-btn" class="btn-icon" title="Toggle Aim Subsystem: Auto / Mouse [T]">🎯</button>
-          <button id="pause-btn" class="btn-icon" title="Pause / Resume Game [P / ESC]">⏸️</button>
-          <button id="quit-btn" class="btn-icon" title="Abandon Run / Quit to Results [Q]">🛑</button>
-          <button id="leaderboard-btn" class="btn-icon" title="Global All-Time Leaderboard">🏆</button>
-          <button id="audio-toggle" class="btn-icon" title="Toggle Synthesizer Audio">🔊</button>
-          <div id="ai-status-indicator" class="ai-status-pill checking" title="AI Subsystem Status">
-            <span class="dot"></span> <span id="ai-status-text">AI INIT</span>
-          </div>
-        </div>
-      </div>
-    </header>
-
-    <!-- Canvas Container -->
-    <main class="canvas-container">
-      <canvas id="gameCanvas" width="960" height="640"></canvas>
-
-      <!-- Left-Side Hostile Spawn Intel Panel (Ultra Boss Excluded) -->
+    <!-- Battle Station Cockpit Framework: Left Panel, Center Playing Arena, Right Telemetry Panel -->
+    <div class="game-layout-row">
+      <!-- Left-Side Hostile Spawn Intel Panel (Outside Playing Area) -->
       <aside id="enemy-spawn-panel" class="enemy-spawn-panel">
         <div class="spawn-panel-header">
           <div class="spawn-panel-title">
             <span class="radar-dot"></span>
             <span>HOSTILE INTEL</span>
           </div>
-          <button id="spawn-panel-toggle" class="spawn-panel-toggle" title="Collapse / Expand Panel">◀</button>
+          <button id="spawn-panel-toggle" class="spawn-panel-toggle" title="Collapse / Expand Hostile Intel">◀</button>
         </div>
 
         <div class="spawn-panel-tabs">
@@ -94,40 +33,175 @@
         </div>
       </aside>
 
-      <!-- Minimized Spawn Panel Pill (when collapsed) -->
+      <!-- Minimized Left Spawn Panel Pill (when collapsed) -->
       <button id="enemy-spawn-pill" class="enemy-spawn-pill hidden" title="Expand Hostile Intel Panel">
         <span class="radar-dot"></span>
         <span class="pill-text">HOSTILES (<span id="pill-active-count">2</span>)</span>
         <span class="pill-arrow">▶</span>
       </button>
-      
-      <!-- In-game AI Event / Boss Alert Banner -->
-      <div id="event-banner" class="event-banner hidden">
-        <div class="event-banner-inner">
-          <div class="event-alert-tag">⚠️ THREAT DETECTED: <span id="event-tag-title">BOSS ENCOUNTER</span></div>
-          <h2 id="event-boss-name" class="event-boss-name">NEXUS OVERSEER</h2>
-          <p id="event-transmission" class="event-transmission">"TRANSMISSION INTERCEPTED"</p>
+
+      <!-- Center Column: XP Bar, Top HUD, Playing Area Canvas -->
+      <div class="game-center-column">
+        <!-- Top XP Bar spanning the screen -->
+        <div class="xp-bar-container">
+          <div id="xp-bar-fill" class="xp-bar-fill" style="width: 0%;"></div>
+          <div class="level-indicator">
+            <span class="level-label">LEVEL</span>
+            <span id="player-level" class="level-val">1</span>
+          </div>
         </div>
+
+        <!-- HUD Overlay -->
+        <header class="game-hud">
+          <div class="hud-left">
+            <div class="health-container">
+              <div class="health-label">HULL INTEGRITY</div>
+              <div class="health-bar-bg">
+                <div id="health-bar-fill" class="health-bar-fill" style="width: 100%;"></div>
+                <span id="health-text" class="health-text">100 / 100</span>
+              </div>
+            </div>
+            <div id="hud-pilot-pill" class="pilot-hud-pill" title="Click to choose your Pilot Name">
+              <span class="pilot-hud-label">PILOT</span>
+              <span id="hud-pilot-display" class="pilot-hud-val">PILOT</span>
+              <span class="pilot-hud-edit">✎</span>
+            </div>
+          </div>
+
+          <div class="hud-center">
+            <div class="timer-box">
+              <span class="hud-sub">SURVIVAL TIME</span>
+              <span id="timer-display" class="hud-val">00:00</span>
+            </div>
+          </div>
+
+          <div class="hud-right">
+            <div class="stat-box">
+              <span class="hud-sub">TOP SCORE</span>
+              <span id="top-score-display" class="hud-val" style="color: var(--accent-yellow);">0</span>
+            </div>
+            <div class="stat-box">
+              <span class="hud-sub">SCORE</span>
+              <span id="score-display" class="hud-val">0</span>
+            </div>
+            <div class="stat-box">
+              <span class="hud-sub">KILLS</span>
+              <span id="kills-display" class="hud-val">0</span>
+            </div>
+            <div class="system-controls">
+              <button id="aim-mode-btn" class="btn-icon" title="Toggle Aim Subsystem: Auto / Mouse [T]">🎯</button>
+              <button id="pause-btn" class="btn-icon" title="Pause / Resume Game [P / ESC]">⏸️</button>
+              <button id="quit-btn" class="btn-icon" title="Abandon Run / Quit to Results [Q]">🛑</button>
+              <button id="leaderboard-btn" class="btn-icon" title="Global All-Time Leaderboard">🏆</button>
+              <button id="audio-toggle" class="btn-icon" title="Toggle Synthesizer Audio">🔊</button>
+              <div id="ai-status-indicator" class="ai-status-pill checking" title="AI Subsystem Status">
+                <span class="dot"></span> <span id="ai-status-text">AI INIT</span>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <!-- Canvas Container (Playing Area - 100% Free of Overlays) -->
+        <main class="canvas-container">
+          <canvas id="gameCanvas" width="960" height="640"></canvas>
+
+          <!-- In-game AI Event / Boss Alert Banner -->
+          <div id="event-banner" class="event-banner hidden">
+            <div class="event-banner-inner">
+              <div class="event-alert-tag">⚠️ THREAT DETECTED: <span id="event-tag-title">BOSS ENCOUNTER</span></div>
+              <h2 id="event-boss-name" class="event-boss-name">NEXUS OVERSEER</h2>
+              <p id="event-transmission" class="event-transmission">"TRANSMISSION INTERCEPTED"</p>
+            </div>
+          </div>
+
+          <!-- Controls hint banner -->
+          <div class="controls-hint">
+            <span>[W][A][S][D] Move</span> &bull;
+            <span>[T] Aim: <b id="hint-aim-mode" style="color: var(--accent-cyan); font-weight: 700;">AUTO</b></span> &bull;
+            <span>[P]/[ESC] Pause</span> &bull;
+            <span>[Q] Quit</span> &bull;
+            <span>Collect Blue Nanite Orbs</span>
+          </div>
+
+          <!-- In-Game Auto Upgrade Toast for Post-10 Boss Drops -->
+          <div id="auto-upgrade-toast" class="auto-upgrade-toast hidden">
+            <span id="toast-icon" class="toast-icon">⚡</span>
+            <div class="toast-content">
+              <div class="toast-title">AUTOMATED CORE INSTALLED</div>
+              <div class="toast-desc"><span id="toast-name">STAT UPGRADE</span>: <span id="toast-stats">+25% DAMAGE</span></div>
+            </div>
+          </div>
+        </main>
       </div>
 
-      <!-- Controls hint banner -->
-      <div class="controls-hint">
-        <span>[W][A][S][D] Move</span> &bull;
-        <span>[T] Aim: <b id="hint-aim-mode" style="color: var(--accent-cyan); font-weight: 700;">AUTO</b></span> &bull;
-        <span>[P]/[ESC] Pause</span> &bull;
-        <span>[Q] Quit</span> &bull;
-        <span>Collect Blue Nanite Orbs</span>
-      </div>
-
-      <!-- In-Game Auto Upgrade Toast for Post-10 Boss Drops -->
-      <div id="auto-upgrade-toast" class="auto-upgrade-toast hidden">
-        <span id="toast-icon" class="toast-icon">⚡</span>
-        <div class="toast-content">
-          <div class="toast-title">AUTOMATED CORE INSTALLED</div>
-          <div class="toast-desc"><span id="toast-name">STAT UPGRADE</span>: <span id="toast-stats">+25% DAMAGE</span></div>
+      <!-- Right-Side Mission Telemetry Panel (Outside Playing Area) -->
+      <aside id="mission-telemetry-panel" class="mission-telemetry-panel">
+        <div class="telemetry-panel-header">
+          <div class="telemetry-panel-title">
+            <span class="telemetry-pulse-dot"></span>
+            <span>MISSION TELEMETRY</span>
+          </div>
+          <button id="telemetry-panel-toggle" class="spawn-panel-toggle" title="Collapse / Expand Telemetry Panel">▶</button>
         </div>
-      </div>
-    </main>
+
+        <div class="telemetry-content">
+          <!-- Top Score Card -->
+          <div class="telemetry-stat-card gold-glow">
+            <span class="telemetry-stat-label">🏆 TOP SCORE</span>
+            <div id="side-top-score" class="telemetry-stat-value gold-text">0</div>
+            <div class="telemetry-stat-sub">ALL-TIME HIGH-WATER MARK</div>
+          </div>
+
+          <!-- Current Score Card -->
+          <div class="telemetry-stat-card cyan-glow">
+            <span class="telemetry-stat-label">⚡ CURRENT SCORE</span>
+            <div id="side-current-score" class="telemetry-stat-value cyan-text">0</div>
+            <div class="telemetry-stat-sub">CURRENT MISSION POINTS</div>
+          </div>
+
+          <!-- Survival Time Card -->
+          <div class="telemetry-stat-card green-glow">
+            <span class="telemetry-stat-label">⏱️ SURVIVAL TIME</span>
+            <div id="side-timer" class="telemetry-stat-value green-text">00:00</div>
+            <div class="telemetry-stat-sub">SECTOR SURVIVAL CLOCK</div>
+          </div>
+
+          <!-- Additional Combat Stats Grid -->
+          <div class="telemetry-mini-grid">
+            <div class="telemetry-mini-stat">
+              <span class="mini-label">HOSTILES PURGED</span>
+              <span id="side-kills" class="mini-val red-text">0</span>
+            </div>
+            <div class="telemetry-mini-stat">
+              <span class="mini-label">MAINFRAME LVL</span>
+              <span id="side-level" class="mini-val yellow-text">1</span>
+            </div>
+          </div>
+
+          <!-- Targeting Subsystem Quick Toggle Card -->
+          <div id="side-aim-badge" class="telemetry-aim-badge" title="Click or press [T] to toggle Aim Mode">
+            <span class="mini-label">TARGETING SUBSYSTEM [T]</span>
+            <div class="telemetry-aim-toggle-wrap">
+              <span id="side-aim-mode-icon">🎯</span>
+              <span id="side-aim-mode-text">AUTO AIM</span>
+            </div>
+          </div>
+
+          <!-- Registered Pilot Card -->
+          <div class="telemetry-pilot-card">
+            <span class="mini-label">REGISTERED PILOT</span>
+            <div id="side-pilot-display" class="side-pilot-name">PILOT</div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Minimized Right Telemetry Panel Pill (when collapsed) -->
+      <button id="telemetry-panel-pill" class="telemetry-panel-pill hidden" title="Expand Mission Telemetry Panel">
+        <span class="telemetry-pulse-dot"></span>
+        <span class="pill-text">TELEMETRY</span>
+        <span class="pill-arrow">◀</span>
+      </button>
+    </div>
 
     <!-- Pre-Mission Deployment & Targeting Subsystem Selection Modal -->
     <div id="start-modal" class="modal-overlay">
@@ -342,6 +416,6 @@
     </div>
   </div>
 
-  <script src="/static/js/game.js?v=20260910_09"></script>
+  <script src="/static/js/game.js?v=20260910_10"></script>
 </body>
 </html>

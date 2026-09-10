@@ -134,6 +134,20 @@ const spawnActiveCount = document.getElementById('spawn-active-count');
 const spawnTotalCount = document.getElementById('spawn-total-count');
 const pillActiveCount = document.getElementById('pill-active-count');
 
+// Right-Side Mission Telemetry Panel DOM Elements
+const missionTelemetryPanel = document.getElementById('mission-telemetry-panel');
+const telemetryPanelToggle = document.getElementById('telemetry-panel-toggle');
+const telemetryPanelPill = document.getElementById('telemetry-panel-pill');
+const sideTopScore = document.getElementById('side-top-score');
+const sideCurrentScore = document.getElementById('side-current-score');
+const sideTimer = document.getElementById('side-timer');
+const sideKills = document.getElementById('side-kills');
+const sideLevel = document.getElementById('side-level');
+const sideAimBadge = document.getElementById('side-aim-badge');
+const sideAimModeText = document.getElementById('side-aim-mode-text');
+const sideAimModeIcon = document.getElementById('side-aim-mode-icon');
+const sidePilotDisplay = document.getElementById('side-pilot-display');
+
 let currentSpawnTab = 'active'; // 'active' or 'all'
 let lastSpawnPanelUpdateSec = -1;
 
@@ -2248,6 +2262,13 @@ function updateAimModeUI() {
     pauseAimAutoBtn.classList.toggle('active', !isMouse);
     pauseAimMouseBtn.classList.toggle('active', isMouse);
   }
+  if (sideAimModeText) {
+    sideAimModeText.textContent = isMouse ? 'MOUSE AIM' : 'AUTO AIM';
+    sideAimModeText.style.color = isMouse ? '#ff9100' : 'var(--accent-cyan)';
+  }
+  if (sideAimModeIcon) {
+    sideAimModeIcon.textContent = isMouse ? '🖱️' : '🎯';
+  }
   if (canvas) {
     canvas.style.cursor = isMouse ? 'crosshair' : 'default';
   }
@@ -2505,7 +2526,9 @@ function updateHUD() {
 
   const mins = Math.floor(game.survivalTime / 60);
   const secs = Math.floor(game.survivalTime % 60);
-  timerDisplay.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  const timeStr = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  timerDisplay.textContent = timeStr;
+  if (sideTimer) sideTimer.textContent = timeStr;
 
   // Top Score real-time check & persistence
   if (game.score > playerTopScore) {
@@ -2515,8 +2538,15 @@ function updateHUD() {
     } catch (e) {}
   }
   if (topScoreDisplay) topScoreDisplay.textContent = playerTopScore;
+  if (sideTopScore) sideTopScore.textContent = playerTopScore.toLocaleString();
+
   scoreDisplay.textContent = game.score;
+  if (sideCurrentScore) sideCurrentScore.textContent = game.score.toLocaleString();
+
   killsDisplay.textContent = game.kills;
+  if (sideKills) sideKills.textContent = game.kills.toLocaleString();
+
+  if (sideLevel && game.player) sideLevel.textContent = game.player.level;
 
   // Real-time update for Left-Side Hostile Intel Panel
   updateEnemySpawnPanel();
@@ -2968,6 +2998,7 @@ function setPilotName(name) {
   } catch (e) {}
 
   if (hudPilotDisplay) hudPilotDisplay.textContent = finalName;
+  if (sidePilotDisplay) sidePilotDisplay.textContent = finalName.toUpperCase();
   if (callsignInput) callsignInput.value = finalName;
   if (leaderboardPilotInput) leaderboardPilotInput.value = finalName;
   return finalName;
@@ -3329,6 +3360,35 @@ if (enemySpawnPanel) {
 }
 if (enemySpawnPill) {
   enemySpawnPill.addEventListener('pointerdown', (e) => e.stopPropagation());
+}
+
+// Right-Side Mission Telemetry Panel event listeners
+if (telemetryPanelToggle && missionTelemetryPanel && telemetryPanelPill) {
+  telemetryPanelToggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    missionTelemetryPanel.classList.add('hidden');
+    telemetryPanelPill.classList.remove('hidden');
+  });
+
+  telemetryPanelPill.addEventListener('click', (e) => {
+    e.stopPropagation();
+    telemetryPanelPill.classList.add('hidden');
+    missionTelemetryPanel.classList.remove('hidden');
+  });
+}
+
+if (missionTelemetryPanel) {
+  missionTelemetryPanel.addEventListener('pointerdown', (e) => e.stopPropagation());
+  missionTelemetryPanel.addEventListener('click', (e) => e.stopPropagation());
+}
+if (telemetryPanelPill) {
+  telemetryPanelPill.addEventListener('pointerdown', (e) => e.stopPropagation());
+}
+if (sideAimBadge) {
+  sideAimBadge.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleAimMode();
+  });
 }
 
 // Initialize Pilot Name in HUD and input fields

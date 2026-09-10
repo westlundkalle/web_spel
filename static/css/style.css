@@ -27,7 +27,8 @@ body {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: auto;
   user-select: none;
 }
 
@@ -36,8 +37,27 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 960px;
+  width: auto;
   max-width: 100vw;
+  padding: 10px 14px;
+}
+
+/* Battle Station Cockpit Framework */
+.game-layout-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 14px;
+  position: relative;
+}
+
+.game-center-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 960px;
+  flex-shrink: 0;
+  position: relative;
 }
 
 /* XP Bar Header */
@@ -317,17 +337,18 @@ body {
 
 /* Modal Overlays */
 .modal-overlay {
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
-  height: 100%;
+  width: 100vw;
+  height: 100vh;
   background: rgba(4, 7, 18, 0.88);
   backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 100;
+  z-index: 200;
   transition: opacity 0.2s ease;
 }
 
@@ -1091,14 +1112,14 @@ body {
   box-shadow: 0 0 10px rgba(255, 0, 85, 0.6);
 }
 
-/* Left-Side Hostile Spawn Intel Panel */
+/* Left-Side Hostile Spawn Intel Panel (Outside Playing Area) */
 .enemy-spawn-panel {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  width: 195px;
-  max-height: 480px;
-  background: rgba(8, 12, 24, 0.88);
+  position: relative;
+  top: auto;
+  left: auto;
+  width: 215px;
+  height: 720px;
+  background: rgba(8, 12, 24, 0.9);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(0, 240, 255, 0.28);
@@ -1106,10 +1127,12 @@ body {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65), inset 0 0 15px rgba(0, 240, 255, 0.05);
   display: flex;
   flex-direction: column;
-  z-index: 40;
+  flex-shrink: 0;
+  z-index: 20;
   pointer-events: auto;
   user-select: none;
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
 }
 
 .spawn-panel-header {
@@ -1206,12 +1229,13 @@ body {
 }
 
 .enemy-spawn-list {
-  padding: 6px 8px;
+  padding: 8px;
   overflow-y: auto;
-  max-height: 380px;
+  flex: 1;
+  max-height: none;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
 }
 
 /* Scrollbar styling for spawn list */
@@ -1312,16 +1336,13 @@ body {
   border: 1px solid rgba(255, 230, 0, 0.25);
 }
 
-/* Collapsed Pill Button */
+/* Collapsed Left & Right Pill Buttons */
 .enemy-spawn-pill {
-  position: absolute;
-  top: 12px;
-  left: 12px;
   display: flex;
   align-items: center;
   gap: 7px;
-  padding: 5px 10px;
-  background: rgba(8, 12, 24, 0.85);
+  padding: 6px 12px;
+  background: rgba(8, 12, 24, 0.9);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   border: 1px solid rgba(0, 240, 255, 0.35);
@@ -1330,12 +1351,33 @@ body {
   z-index: 40;
   transition: all 0.2s ease;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  align-self: flex-start;
+  margin-top: 24px;
 }
 
-.enemy-spawn-pill:hover {
-  background: rgba(0, 240, 255, 0.18);
+.telemetry-panel-pill {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  background: rgba(8, 12, 24, 0.9);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  border-radius: 14px;
+  cursor: pointer;
+  z-index: 40;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  align-self: flex-start;
+  margin-top: 24px;
+}
+
+.enemy-spawn-pill:hover,
+.telemetry-panel-pill:hover {
+  background: rgba(0, 240, 255, 0.2);
   border-color: var(--accent-cyan);
-  box-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.45);
 }
 
 .pill-text {
@@ -1349,6 +1391,239 @@ body {
 .pill-arrow {
   font-size: 8px;
   color: var(--accent-cyan);
+}
+
+/* Right-Side Mission Telemetry Panel (Outside Playing Area) */
+.mission-telemetry-panel {
+  position: relative;
+  width: 215px;
+  height: 720px;
+  background: rgba(8, 12, 24, 0.9);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 240, 255, 0.28);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65), inset 0 0 15px rgba(0, 240, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  z-index: 20;
+  pointer-events: auto;
+  user-select: none;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+.telemetry-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  background: rgba(0, 240, 255, 0.06);
+  border-bottom: 1px solid rgba(0, 240, 255, 0.2);
+  border-radius: 7px 7px 0 0;
+}
+
+.telemetry-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+  color: #fff;
+  text-shadow: 0 0 6px rgba(0, 240, 255, 0.4);
+}
+
+.telemetry-pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent-cyan);
+  box-shadow: 0 0 8px var(--accent-cyan);
+  animation: radarDotPulse 1.6s infinite ease-in-out;
+}
+
+.telemetry-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.telemetry-content::-webkit-scrollbar {
+  width: 4px;
+}
+.telemetry-content::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+}
+.telemetry-content::-webkit-scrollbar-thumb {
+  background: rgba(0, 240, 255, 0.3);
+  border-radius: 2px;
+}
+
+.telemetry-stat-card {
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.2s ease;
+}
+
+.telemetry-stat-card.gold-glow {
+  border-color: rgba(255, 230, 0, 0.35);
+  background: rgba(255, 230, 0, 0.05);
+  box-shadow: 0 0 14px rgba(255, 230, 0, 0.12);
+}
+
+.telemetry-stat-card.cyan-glow {
+  border-color: rgba(0, 240, 255, 0.35);
+  background: rgba(0, 240, 255, 0.05);
+  box-shadow: 0 0 14px rgba(0, 240, 255, 0.12);
+}
+
+.telemetry-stat-card.green-glow {
+  border-color: rgba(0, 255, 136, 0.35);
+  background: rgba(0, 255, 136, 0.05);
+  box-shadow: 0 0 14px rgba(0, 255, 136, 0.12);
+}
+
+.telemetry-stat-label {
+  font-family: var(--font-display);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+}
+
+.telemetry-stat-value {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+  line-height: 1.2;
+  margin: 4px 0 2px;
+}
+
+.telemetry-stat-value.gold-text {
+  color: var(--accent-yellow);
+  text-shadow: 0 0 10px rgba(255, 230, 0, 0.5);
+}
+
+.telemetry-stat-value.cyan-text {
+  color: var(--accent-cyan);
+  text-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+}
+
+.telemetry-stat-value.green-text {
+  color: var(--accent-green);
+  text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+}
+
+.telemetry-stat-sub {
+  font-size: 8px;
+  color: rgba(255, 255, 255, 0.35);
+  font-family: var(--font-body);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.telemetry-mini-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.telemetry-mini-stat {
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 5px;
+  padding: 8px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.mini-label {
+  font-family: var(--font-display);
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.mini-val {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.mini-val.red-text {
+  color: #ff3366;
+  text-shadow: 0 0 8px rgba(255, 51, 102, 0.4);
+}
+
+.mini-val.yellow-text {
+  color: var(--accent-yellow);
+  text-shadow: 0 0 8px rgba(255, 230, 0, 0.4);
+}
+
+.telemetry-aim-badge {
+  background: rgba(0, 240, 255, 0.06);
+  border: 1px solid rgba(0, 240, 255, 0.25);
+  border-radius: 6px;
+  padding: 8px 10px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: all 0.2s ease;
+}
+
+.telemetry-aim-badge:hover {
+  background: rgba(0, 240, 255, 0.15);
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
+}
+
+.telemetry-aim-toggle-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #fff;
+}
+
+.telemetry-pilot-card {
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 6px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.side-pilot-name {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--accent-yellow);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Targeting Subsystem & Aim Controls */
