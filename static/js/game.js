@@ -766,14 +766,15 @@ class Projectile {
 
 // Enemy Artillery Plasma Orb
 class EnemyPlasmaOrb {
-  constructor(x, y, angle) {
+  constructor(x, y, angle, damage = 18, color = '#39ff14', speed = 175) {
     this.x = x;
     this.y = y;
-    this.speed = 175;
+    this.speed = speed;
     this.vx = Math.cos(angle) * this.speed;
     this.vy = Math.sin(angle) * this.speed;
     this.radius = 7;
-    this.damage = 18;
+    this.damage = damage;
+    this.color = color;
     this.lifespan = 5.0;
     this.markedForDeletion = false;
   }
@@ -790,15 +791,15 @@ class EnemyPlasmaOrb {
     if (Math.hypot(player.x - this.x, player.y - this.y) < player.radius + this.radius) {
       player.takeDamage(this.damage);
       this.markedForDeletion = true;
-      spawnExplosion(this.x, this.y, '#39ff14', 8);
+      spawnExplosion(this.x, this.y, this.color, 8);
     }
   }
 
   draw(ctx) {
     ctx.save();
     ctx.shadowBlur = 14;
-    ctx.shadowColor = '#39ff14';
-    ctx.fillStyle = '#39ff14';
+    ctx.shadowColor = this.color;
+    ctx.fillStyle = this.color;
     ctx.beginPath();
     ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
     ctx.fill();
@@ -823,8 +824,12 @@ class Enemy {
     this.isBoss = false;
     this.splitsOnDeath = false;
 
-    // Controlled speed scaling so evasion remains fair while health scales
-    const speedMult = Math.min(2.0, this.difficultyMultiplier);
+    const mins = game.survivalTime / 60;
+    // Controlled speed scaling to match high-tier thrusters while preserving dodgeability
+    const speedMult = Math.min(2.8, 1.0 + mins * 0.05);
+
+    // Dynamic end-game damage scaling so mobs remain lethal to high-HP players
+    const dmgScaling = 1.0 + Math.max(0, (mins - 4) * 0.06) + Math.max(0, (mins - 12) * 0.12);
 
     if (type === 'boss' || bossConfig) {
       this.isBoss = true;
@@ -834,18 +839,22 @@ class Enemy {
       const stats = cfg.stats || {};
       this.speed = 70 * (stats.speed_mult || 1.0);
 
-      // Base boss health calculation
+      // Base boss health calculation with compounding scaling in late and apex stages
       let baseHealth = 500 * (stats.health_mult || 4.0) * this.difficultyMultiplier;
 
-      // Accelerated health scaling after the 20th boss (to match player's 20+ stacked powerups)
-      if (this.difficultyMultiplier > 12.4 || (game.bossesDefeated && game.bossesDefeated >= 20)) {
-        const post20Tier = Math.max(1, (this.difficultyMultiplier - 12.4) / 1.5);
-        baseHealth *= (1.0 + post20Tier * 0.18);
+      // Accelerated health curve matching 10+ and 20+ stacked player subsystem overclocks
+      if (mins > 10) {
+        const post10Tier = mins - 10;
+        baseHealth *= (1.0 + post10Tier * 0.16);
+      }
+      if (mins > 20) {
+        const post20Tier = mins - 20;
+        baseHealth *= (1.0 + post20Tier * 0.35);
       }
 
       this.health = Math.round(baseHealth);
       this.maxHealth = this.health;
-      this.damage = 40 * (stats.damage_mult || 1.8);
+      this.damage = Math.round(40 * (stats.damage_mult || 1.8) * dmgScaling);
       this.color = cfg.color || '#ff0055';
       this.xpValue = 50;
     } else if (type === 'swarmer') {
@@ -853,7 +862,7 @@ class Enemy {
       this.speed = 140 * (1 + speedMult * 0.04);
       this.health = 20 * this.difficultyMultiplier;
       this.maxHealth = this.health;
-      this.damage = 12;
+      this.damage = Math.round(12 * dmgScaling);
       this.color = '#ff3366';
       this.xpValue = 1;
     } else if (type === 'striker') {
@@ -861,7 +870,7 @@ class Enemy {
       this.speed = 105 * (1 + speedMult * 0.035);
       this.health = 50 * this.difficultyMultiplier;
       this.maxHealth = this.health;
-      this.damage = 22;
+      this.damage = Math.round(22 * dmgScaling);
       this.color = '#9d4edd';
       this.xpValue = 3;
     } else if (type === 'dreadnought') {
@@ -869,7 +878,7 @@ class Enemy {
       this.speed = 65 * (1 + speedMult * 0.025);
       this.health = 160 * this.difficultyMultiplier;
       this.maxHealth = this.health;
-      this.damage = 38;
+      this.damage = Math.round(38 * dmgScaling);
       this.color = '#ff9100';
       this.xpValue = 8;
     } else if (type === 'viper') { // Unlocks after Boss 1 (Minute 1+)
@@ -877,7 +886,7 @@ class Enemy {
       this.speed = 175 * (1 + speedMult * 0.03);
       this.health = 55 * this.difficultyMultiplier;
       this.maxHealth = this.health;
-      this.damage = 20;
+      this.damage = Math.round(20 * dmgScaling);
       this.color = '#00f0ff';
       this.xpValue = 4;
       this.dashTimer = 1.5 + Math.random() * 0.8;
@@ -889,17 +898,17 @@ class Enemy {
       this.speed = 60 * (1 + speedMult * 0.025);
       this.health = 140 * this.difficultyMultiplier;
       this.maxHealth = this.health;
-      this.damage = 25;
+      this.damage = Math.round(25 * dmgScaling);
       this.color = '#39ff14';
       this.xpValue = 7;
-      this.shootCooldown = 3.2;
-      this.shootTimer = 1.2 + Math.random() * 2.0;
+      this.shootCooldown = Math.max(1.6, 3.2 - mins * 0.08);
+      this.shootTimer = 1.0 + Math.random() * 1.5;
     } else if (type === 'hydra') { // Unlocks after Boss 3 (Minute 3+)
       this.radius = 24;
       this.speed = 85 * (1 + speedMult * 0.025);
       this.health = 190 * this.difficultyMultiplier;
       this.maxHealth = this.health;
-      this.damage = 32;
+      this.damage = Math.round(32 * dmgScaling);
       this.color = '#b5179e';
       this.xpValue = 9;
       this.splitsOnDeath = true;
@@ -908,7 +917,7 @@ class Enemy {
       this.speed = 155 * (1 + speedMult * 0.03);
       this.health = 35 * this.difficultyMultiplier;
       this.maxHealth = this.health;
-      this.damage = 14;
+      this.damage = Math.round(14 * dmgScaling);
       this.color = '#e0aaff';
       this.xpValue = 2;
     } else if (type === 'phantom') { // Unlocks after Boss 4 (Minute 4+)
@@ -916,24 +925,23 @@ class Enemy {
       this.speed = 100 * (1 + speedMult * 0.025);
       this.health = 160 * this.difficultyMultiplier;
       this.maxHealth = this.health;
-      this.damage = 32;
+      this.damage = Math.round(32 * dmgScaling);
       this.color = '#ffd700';
       this.xpValue = 10;
-      this.warpCooldown = 3.0;
-      this.warpTimer = 2.0 + Math.random() * 2.0;
+      this.warpCooldown = Math.max(1.5, 3.0 - mins * 0.06);
+      this.warpTimer = 1.5 + Math.random() * 1.5;
     } else if (type === 'devourer') { // Unlocks after Boss 5 (Minute 5+) - Normal spawning elite wave enemy
       this.isBoss = false;
       this.enemyName = 'ABYSSAL DEVOURER';
       this.radius = 32;
       this.speed = 55 * (1 + speedMult * 0.02);
       let devourerHealth = 460 * this.difficultyMultiplier;
-      if (game.survivalTime > 1200) {
-        const extraMins = (game.survivalTime - 1200) / 60;
-        devourerHealth *= (1.0 + extraMins * 0.14);
+      if (mins > 8) {
+        devourerHealth *= (1.0 + (mins - 8) * 0.16);
       }
       this.health = Math.round(devourerHealth);
       this.maxHealth = this.health;
-      this.damage = 50;
+      this.damage = Math.round(50 * dmgScaling);
       this.color = '#e63946';
       this.xpValue = 35;
     }
@@ -979,7 +987,36 @@ class Enemy {
       if (this.shootTimer <= 0) {
         this.shootTimer = this.shootCooldown;
         const angleToPlayer = Math.atan2(player.y - this.y, player.x - this.x);
-        game.enemyProjectiles.push(new EnemyPlasmaOrb(this.x, this.y, angleToPlayer));
+        game.enemyProjectiles.push(new EnemyPlasmaOrb(this.x, this.y, angleToPlayer, Math.round(this.damage * 0.75), '#39ff14', 180));
+      }
+    }
+
+    // Special behavior: Encounter Boss Artillery Plasma Barrage
+    if (this.isBoss) {
+      if (this.bossShootTimer === undefined) {
+        this.bossShootTimer = 2.0;
+      }
+      this.bossShootTimer -= dt;
+      if (this.bossShootTimer <= 0) {
+        const mins = game.survivalTime / 60;
+        this.bossShootTimer = Math.max(1.1, 2.5 - mins * 0.05);
+        const baseAngle = Math.atan2(player.y - this.y, player.x - this.x);
+        const orbDamage = Math.round(this.damage * 0.55);
+
+        if (mins >= 18) {
+          // 5-way spread barrage in deep endgame
+          [-0.36, -0.18, 0, 0.18, 0.36].forEach(offset => {
+            game.enemyProjectiles.push(new EnemyPlasmaOrb(this.x, this.y, baseAngle + offset, orbDamage, this.color, 215));
+          });
+        } else if (mins >= 10) {
+          // 3-way spread barrage in late game
+          [-0.24, 0, 0.24].forEach(offset => {
+            game.enemyProjectiles.push(new EnemyPlasmaOrb(this.x, this.y, baseAngle + offset, orbDamage, this.color, 195));
+          });
+        } else {
+          // Focused heavy plasma shot
+          game.enemyProjectiles.push(new EnemyPlasmaOrb(this.x, this.y, baseAngle, orbDamage, this.color, 180));
+        }
       }
     }
 
@@ -1629,16 +1666,13 @@ function spawnEnemyWave() {
   const top = Math.max(0, camera.y - pad);
   const bottom = Math.min(WORLD_HEIGHT, camera.y + camera.height + pad);
 
-  let x, y;
-  const edge = Math.floor(Math.random() * 4);
-  if (edge === 0) { x = left + Math.random() * (right - left); y = top; }
-  else if (edge === 1) { x = right; y = top + Math.random() * (bottom - top); }
-  else if (edge === 2) { x = left + Math.random() * (right - left); y = bottom; }
-  else { x = left; y = top + Math.random() * (bottom - top); }
-
   const minutes = game.survivalTime / 60;
-  // Dynamic health scaling: steady ramp early, accelerated progression in later waves
-  const difficultyMult = 1 + minutes * 0.75 + (minutes > 2 ? (minutes - 2) * 0.35 : 0);
+  // Dynamic health scaling: steady ramp early, accelerated curve mid-game, dramatic surge in late/end-game
+  let difficultyMult = 1.0 + minutes * 0.8;
+  if (minutes > 3) difficultyMult += (minutes - 3) * 0.6;
+  if (minutes > 8) difficultyMult += (minutes - 8) * 1.6;
+  if (minutes > 14) difficultyMult += (minutes - 14) * 3.6;
+  if (minutes > 20) difficultyMult += (minutes - 20) * 8.0;
 
   // Progressive enemy roster based on minute / boss progression:
   let eligible = ['swarmer', 'swarmer', 'striker'];
@@ -1651,8 +1685,30 @@ function spawnEnemyWave() {
   if (minutes >= 4.0) eligible.push('phantom');        // Unlocked after Boss 4
   if (minutes >= 5.0) eligible.push('devourer');       // Unlocked after Boss 5
 
-  const type = eligible[Math.floor(Math.random() * eligible.length)];
-  game.enemies.push(new Enemy(type, x, y, difficultyMult));
+  // End-game horde density: spawn clusters of foes to pressure high-powered player builds
+  let spawnCount = 1;
+  if (minutes >= 3) spawnCount = Math.random() < 0.45 ? 2 : 1;
+  if (minutes >= 7) spawnCount = Math.floor(2 + Math.random() * 2);      // 2 - 3 enemies
+  if (minutes >= 11) spawnCount = Math.floor(3 + Math.random() * 2);     // 3 - 4 enemies
+  if (minutes >= 15) spawnCount = Math.floor(4 + Math.random() * 3);     // 4 - 6 enemies
+  if (minutes >= 20) spawnCount = Math.floor(6 + Math.random() * 4);     // 6 - 9 enemies!
+
+  for (let s = 0; s < spawnCount; s++) {
+    let x, y;
+    const edge = Math.floor(Math.random() * 4);
+    if (edge === 0) { x = left + Math.random() * (right - left); y = top; }
+    else if (edge === 1) { x = right; y = top + Math.random() * (bottom - top); }
+    else if (edge === 2) { x = left + Math.random() * (right - left); y = bottom; }
+    else { x = left; y = top + Math.random() * (bottom - top); }
+
+    const jitterX = (Math.random() - 0.5) * 45;
+    const jitterY = (Math.random() - 0.5) * 45;
+    const finalX = Math.max(12, Math.min(WORLD_WIDTH - 12, x + jitterX));
+    const finalY = Math.max(12, Math.min(WORLD_HEIGHT - 12, y + jitterY));
+
+    const type = eligible[Math.floor(Math.random() * eligible.length)];
+    game.enemies.push(new Enemy(type, finalX, finalY, difficultyMult));
+  }
 }
 
 // Trigger dynamic AI Boss Encounter
@@ -1702,16 +1758,33 @@ async function triggerBossEncounter(minuteMark) {
   const spawnX = Math.max(80, Math.min(WORLD_WIDTH - 80, camera.x + camera.width / 2));
   const spawnY = Math.max(40, camera.y - 50);
 
-  // Scaled boss difficulty progression with accelerated curve after the 20th boss
-  let bossDifficulty = 1.0 + (minuteMark - 1) * 0.6;
+  // Scaled boss difficulty progression with accelerated curve into mid & late game, and massive scaling in apex stage
+  let bossDifficulty = 1.0 + (minuteMark - 1) * 0.8;
+  if (minuteMark > 10) {
+    bossDifficulty += (minuteMark - 10) * 1.5;
+  }
+  if (minuteMark > 15) {
+    bossDifficulty += (minuteMark - 15) * 3.0;
+  }
   if (minuteMark > 20) {
-    const postTwenty = minuteMark - 20;
-    bossDifficulty += postTwenty * 1.5;
+    bossDifficulty += (minuteMark - 20) * 6.5;
   }
 
   const bossEnemy = new Enemy('boss', spawnX, spawnY, bossDifficulty, bossConfig);
   bossEnemy.bossMinute = minuteMark;
   game.enemies.push(bossEnemy);
+
+  // In mid & late game, bosses arrive with an elite strike wing escort
+  if (minuteMark >= 5) {
+    const escortCount = Math.min(8, Math.floor((minuteMark - 3) * 0.8));
+    for (let i = 0; i < escortCount; i++) {
+      const escortType = minuteMark >= 15 ? (Math.random() < 0.5 ? 'phantom' : 'bombard') : (Math.random() < 0.5 ? 'viper' : 'striker');
+      const offsetAngle = (i / escortCount) * Math.PI * 2;
+      const ex = Math.max(20, Math.min(WORLD_WIDTH - 20, spawnX + Math.cos(offsetAngle) * 65));
+      const ey = Math.max(20, Math.min(WORLD_HEIGHT - 20, spawnY + Math.sin(offsetAngle) * 65));
+      game.enemies.push(new Enemy(escortType, ex, ey, bossDifficulty * 0.65));
+    }
+  }
 }
 
 // --- HUD & UI Updates ---
@@ -2548,9 +2621,10 @@ function gameLoop(timestamp) {
       triggerBossEncounter(currentMinute);
     }
 
-    // Spawner tick
+    // Spawner tick: smoothly ramps down from 1.2s to 0.12s in deep end-game
     game.spawnTimer += dt;
-    const currentSpawnRate = Math.max(0.24, game.spawnInterval - (game.survivalTime / 60) * 0.16);
+    const mins = game.survivalTime / 60;
+    const currentSpawnRate = Math.max(0.12, game.spawnInterval - mins * 0.08 - (mins > 10 ? (mins - 10) * 0.015 : 0));
     if (game.spawnTimer >= currentSpawnRate) {
       game.spawnTimer = 0;
       spawnEnemyWave();
