@@ -944,6 +944,44 @@ class Enemy {
       this.damage = Math.round(50 * dmgScaling);
       this.color = '#e63946';
       this.xpValue = 35;
+    } else if (type === 'colossus') { // Ultra Boss at 10 min mark, or normal wave spawn starting at 20 min mark
+      const isBossEncounter = (bossConfig || this.isBoss || this.isUltraBoss);
+      if (isBossEncounter) {
+        this.isBoss = true;
+        this.isUltraBoss = true;
+        this.bossName = 'VOID COLOSSUS OMEGA';
+        this.radius = 48;
+        this.speed = 68;
+        const stats = (bossConfig && bossConfig.stats) ? bossConfig.stats : {};
+        let colossusHealth = 500 * (stats.health_mult || 8.5) * this.difficultyMultiplier;
+        if (mins > 10) {
+          colossusHealth *= (1.0 + (mins - 10) * 0.16);
+        }
+        if (mins > 20) {
+          colossusHealth *= (1.0 + (mins - 20) * 0.35);
+        }
+        this.health = Math.round(colossusHealth);
+        this.maxHealth = this.health;
+        this.damage = Math.round(55 * (stats.damage_mult || 2.2) * dmgScaling);
+        this.color = '#b5179e';
+        this.xpValue = 100;
+      } else {
+        // Normal wave spawn (Unlocked at Minute 20+)
+        this.isBoss = false;
+        this.isUltraBoss = false;
+        this.enemyName = 'VOID COLOSSUS';
+        this.radius = 38;
+        this.speed = 58 * (1 + speedMult * 0.02);
+        let colossusHealth = 780 * this.difficultyMultiplier;
+        if (mins > 20) {
+          colossusHealth *= (1.0 + (mins - 20) * 0.15);
+        }
+        this.health = Math.round(colossusHealth);
+        this.maxHealth = this.health;
+        this.damage = Math.round(58 * dmgScaling);
+        this.color = '#7209b7';
+        this.xpValue = 45;
+      }
     }
   }
 
@@ -1003,10 +1041,10 @@ class Enemy {
         const baseAngle = Math.atan2(player.y - this.y, player.x - this.x);
         const orbDamage = Math.round(this.damage * 0.55);
 
-        if (mins >= 18) {
-          // 5-way spread barrage in deep endgame
-          [-0.36, -0.18, 0, 0.18, 0.36].forEach(offset => {
-            game.enemyProjectiles.push(new EnemyPlasmaOrb(this.x, this.y, baseAngle + offset, orbDamage, this.color, 215));
+        if (this.isUltraBoss || mins >= 18) {
+          // 5-way spread barrage for Ultra Boss & deep endgame
+          [-0.38, -0.19, 0, 0.19, 0.38].forEach(offset => {
+            game.enemyProjectiles.push(new EnemyPlasmaOrb(this.x, this.y, baseAngle + offset, orbDamage, this.isUltraBoss ? '#ff007f' : this.color, 220));
           });
         } else if (mins >= 10) {
           // 3-way spread barrage in late game
@@ -1017,6 +1055,17 @@ class Enemy {
           // Focused heavy plasma shot
           game.enemyProjectiles.push(new EnemyPlasmaOrb(this.x, this.y, baseAngle, orbDamage, this.color, 180));
         }
+      }
+    }
+
+    // Special behavior: Normal wave Void Colossus dark artillery (Minute 20+)
+    if (this.type === 'colossus' && !this.isBoss) {
+      if (this.shootTimer === undefined) this.shootTimer = 2.0;
+      this.shootTimer -= dt;
+      if (this.shootTimer <= 0) {
+        this.shootTimer = 3.2;
+        const angleToPlayer = Math.atan2(player.y - this.y, player.x - this.x);
+        game.enemyProjectiles.push(new EnemyPlasmaOrb(this.x, this.y, angleToPlayer, Math.round(this.damage * 0.7), '#b5179e', 185));
       }
     }
 
@@ -1052,10 +1101,10 @@ class Enemy {
       this.markedForDeletion = true;
       sounds.playExplosion();
       // Only actual scheduled encounter bosses drop boss artifacts, health cores, and mega XP clusters
-      const isBossType = (this.type === 'boss') && this.isBoss;
-      spawnExplosion(this.x, this.y, this.color, isBossType ? 50 : (this.type === 'devourer' ? 24 : 12));
+      const isBossType = (this.type === 'boss' || this.isUltraBoss) && this.isBoss;
+      spawnExplosion(this.x, this.y, this.color, isBossType ? (this.isUltraBoss ? 75 : 50) : (this.type === 'colossus' ? 35 : (this.type === 'devourer' ? 24 : 12)));
       game.kills += 1;
-      game.score += isBossType ? 3500 : (this.xpValue * 25);
+      game.score += isBossType ? (this.isUltraBoss ? 10000 : 3500) : (this.xpValue * 25);
 
       // Hydra splits into two spores upon death
       if (this.splitsOnDeath) {
@@ -1098,7 +1147,10 @@ class Enemy {
         }
         sounds.playBossAlert();
       } else {
-        game.gems.push(new XpGem(this.x, this.y, this.xpValue));
+        // Normal enemy drops: standard mobs drop an XP gem, but normal spawning devourers and normal colossus drop NOTHING!
+        if (this.type !== 'devourer' && this.type !== 'colossus') {
+          game.gems.push(new XpGem(this.x, this.y, this.xpValue));
+        }
       }
       updateHUD();
     }
@@ -1119,59 +1171,118 @@ class Enemy {
     }
 
     if (this.isBoss) {
-      ctx.shadowBlur = 24;
-      ctx.shadowColor = this.color;
+      if (this.isUltraBoss) {
+        // Grand Ultra Boss rendering: Triple rotating dark-energy rings & void singularity
+        ctx.shadowBlur = 32;
+        ctx.shadowColor = '#b5179e';
 
-      ctx.save();
-      ctx.rotate(Date.now() / 350);
-      ctx.strokeStyle = this.color;
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      const spikes = 8;
-      for (let i = 0; i < spikes * 2; i++) {
-        const r = (i % 2 === 0) ? this.radius * 1.35 : this.radius * 0.95;
-        const a = (i * Math.PI) / spikes;
-        const px = Math.cos(a) * r;
-        const py = Math.sin(a) * r;
-        if (i === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
+        // Outer counter-rotating runic spikes
+        ctx.save();
+        ctx.rotate(-Date.now() / 420);
+        ctx.strokeStyle = '#b5179e';
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        const outerSpikes = 12;
+        for (let i = 0; i < outerSpikes * 2; i++) {
+          const r = (i % 2 === 0) ? this.radius * 1.4 : this.radius * 1.05;
+          const a = (i * Math.PI) / outerSpikes;
+          const px = Math.cos(a) * r;
+          const py = Math.sin(a) * r;
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.stroke();
+        ctx.restore();
+
+        // Middle energy vortex
+        ctx.save();
+        ctx.rotate(Date.now() / 260);
+        ctx.strokeStyle = '#00f0ff';
+        ctx.lineWidth = 2.5;
+        ctx.strokeRect(-this.radius * 0.85, -this.radius * 0.85, this.radius * 1.7, this.radius * 1.7);
+        ctx.restore();
+
+        // Dark matter core
+        ctx.fillStyle = '#06010a';
+        ctx.beginPath();
+        ctx.arc(0, 0, this.radius * 0.75, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Pulsating magenta singularity
+        const pulse = 1 + Math.sin(Date.now() / 90) * 0.25;
+        ctx.fillStyle = '#ff007f';
+        ctx.beginPath();
+        ctx.arc(0, 0, this.radius * 0.45 * pulse, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(0, 0, this.radius * 0.2, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Ultra Boss Name Banner
+        ctx.fillStyle = '#ffd700';
+        ctx.font = 'bold 12px Orbitron, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.shadowColor = '#000';
+        ctx.shadowBlur = 6;
+        ctx.fillText('👑 ' + this.bossName + ' 👑', 0, -this.radius - 18);
+      } else {
+        ctx.shadowBlur = 24;
+        ctx.shadowColor = this.color;
+
+        ctx.save();
+        ctx.rotate(Date.now() / 350);
+        ctx.strokeStyle = this.color;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        const spikes = 8;
+        for (let i = 0; i < spikes * 2; i++) {
+          const r = (i % 2 === 0) ? this.radius * 1.35 : this.radius * 0.95;
+          const a = (i * Math.PI) / spikes;
+          const px = Math.cos(a) * r;
+          const py = Math.sin(a) * r;
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.fillStyle = '#180e29';
+        ctx.strokeStyle = this.color;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        for (let i = 0; i < 8; i++) {
+          const a = (i * Math.PI) / 4;
+          const px = Math.cos(a) * this.radius;
+          const py = Math.sin(a) * this.radius;
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        const pulse = 1 + Math.sin(Date.now() / 120) * 0.2;
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(0, 0, this.radius * 0.45 * pulse, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(0, 0, this.radius * 0.2, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 11px Orbitron, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.shadowColor = '#000';
+        ctx.shadowBlur = 4;
+        ctx.fillText(this.bossName, 0, -this.radius - 16);
       }
-      ctx.closePath();
-      ctx.stroke();
-      ctx.restore();
-
-      ctx.fillStyle = '#180e29';
-      ctx.strokeStyle = this.color;
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      for (let i = 0; i < 8; i++) {
-        const a = (i * Math.PI) / 4;
-        const px = Math.cos(a) * this.radius;
-        const py = Math.sin(a) * this.radius;
-        if (i === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
-      }
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-
-      const pulse = 1 + Math.sin(Date.now() / 120) * 0.2;
-      ctx.fillStyle = this.color;
-      ctx.beginPath();
-      ctx.arc(0, 0, this.radius * 0.45 * pulse, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.arc(0, 0, this.radius * 0.2, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = '#fff';
-      ctx.font = 'bold 11px Orbitron, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.shadowColor = '#000';
-      ctx.shadowBlur = 4;
-      ctx.fillText(this.bossName, 0, -this.radius - 16);
 
     } else if (this.type === 'swarmer') {
       ctx.rotate(this.angle);
@@ -1366,6 +1477,50 @@ class Enemy {
       ctx.strokeStyle = '#fff';
       ctx.lineWidth = 1.5;
       ctx.stroke();
+
+    } else if (this.type === 'colossus') {
+      // Normal wave Void Colossus (Minute 20+): Rotating hex barrier with pulsating singularity
+      ctx.shadowBlur = 24;
+      ctx.shadowColor = this.color;
+      ctx.save();
+      ctx.rotate(Date.now() / 320);
+      ctx.strokeStyle = this.color;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const a = (i * Math.PI) / 3;
+        const px = Math.cos(a) * this.radius * 1.15;
+        const py = Math.sin(a) * this.radius * 1.15;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.stroke();
+
+      ctx.rotate(-Date.now() / 200);
+      ctx.fillStyle = '#10002b';
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const a = (i * Math.PI) / 3 + Math.PI / 6;
+        const px = Math.cos(a) * this.radius * 0.85;
+        const py = Math.sin(a) * this.radius * 0.85;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.fillStyle = '#ff007f';
+      ctx.beginPath();
+      ctx.arc(0, 0, this.radius * 0.4, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(0, 0, this.radius * 0.18, 0, Math.PI * 2);
+      ctx.fill();
     }
 
     // Health Bar above enemy
@@ -1609,6 +1764,7 @@ const game = {
   novaRings: [],
   spawnTimer: 0,
   spawnInterval: 1.2,
+  spawnPauseTimer: 0,
   survivalTime: 0,
   score: 0,
   kills: 0,
@@ -1636,6 +1792,7 @@ function initGame() {
   
   game.spawnTimer = 0;
   game.spawnInterval = 1.2;
+  game.spawnPauseTimer = 0;
   game.survivalTime = 0;
   game.score = 0;
   game.kills = 0;
@@ -1675,6 +1832,7 @@ function spawnEnemyWave() {
   if (minutes > 20) difficultyMult += (minutes - 20) * 8.0;
 
   // Progressive enemy roster based on minute / boss progression:
+  // Progressive enemy roster based on minute / boss progression:
   let eligible = ['swarmer', 'swarmer', 'striker'];
   if (minutes > 0.4) eligible.push('dreadnought');
 
@@ -1684,6 +1842,8 @@ function spawnEnemyWave() {
   if (minutes >= 3.0) eligible.push('hydra');          // Unlocked after Boss 3
   if (minutes >= 4.0) eligible.push('phantom');        // Unlocked after Boss 4
   if (minutes >= 5.0) eligible.push('devourer');       // Unlocked after Boss 5
+  // Ultra Boss only unlocks as a normal wave mob starting at the 20 min mark:
+  if (minutes >= 20.0) eligible.push('colossus');      // Unlocked at Minute 20+
 
   // End-game horde density: spawn clusters of foes to pressure high-powered player builds
   let spawnCount = 1;
@@ -1715,43 +1875,66 @@ function spawnEnemyWave() {
 async function triggerBossEncounter(minuteMark) {
   sounds.playBossAlert();
 
+  const isUltraBossMark = (minuteMark === 10);
   let bossConfig = null;
-  try {
-    const res = await fetch('/api/generate-boss-event', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        survival_time: game.survivalTime,
-        level: game.player.level
-      })
-    });
-    if (!res.ok) throw new Error(`HTTP error ${res.status}`);
-    const data = await res.json();
-    if (data && data.event) {
-      bossConfig = data.event;
-    } else {
-      throw new Error('No event object in response');
-    }
-  } catch (err) {
-    const extraHpMult = minuteMark > 20 ? (minuteMark - 20) * 1.5 : 0;
+
+  if (isUltraBossMark) {
+    // Minute 10 Special Ultra Boss: Halts all other enemy spawns for 10 seconds
     bossConfig = {
-      boss_name: minuteMark > 20 ? `APEX TITAN MK-${minuteMark}` : `TITAN MARK-${minuteMark}`,
-      title: minuteMark > 20 ? "Apex Dreadnought Anomaly" : "Core Anomaly",
-      transmission: minuteMark > 20 ? "CRITICAL ALERT: APEX DREADNOUGHT ANOMALY ENGAGED." : "HOSTILE VECTOR DETECTED. INITIATING TARGET ELIMINATION.",
-      color: minuteMark > 20 ? "#ff0077" : "#ff0055",
-      stats: { health_mult: 4.0 + minuteMark * 0.8 + extraHpMult, speed_mult: 0.9, damage_mult: 1.8 }
+      boss_name: "VOID COLOSSUS OMEGA",
+      title: "Category V Ultra Boss",
+      transmission: "DIMENSIONAL COLLAPSE DETECTED. ALL AUXILIARY UNITS RETREATING. FACE EXTINCTION.",
+      color: "#b5179e",
+      stats: { health_mult: 8.5, speed_mult: 0.95, damage_mult: 2.2 }
     };
+    // Freeze all other spawns for 10 seconds
+    game.spawnPauseTimer = 10.0;
+  } else {
+    try {
+      const res = await fetch('/api/generate-boss-event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          survival_time: game.survivalTime,
+          level: game.player.level
+        })
+      });
+      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+      const data = await res.json();
+      if (data && data.event) {
+        bossConfig = data.event;
+      } else {
+        throw new Error('No event object in response');
+      }
+    } catch (err) {
+      const extraHpMult = minuteMark > 20 ? (minuteMark - 20) * 1.5 : 0;
+      bossConfig = {
+        boss_name: minuteMark > 20 ? `APEX TITAN MK-${minuteMark}` : `TITAN MARK-${minuteMark}`,
+        title: minuteMark > 20 ? "Apex Dreadnought Anomaly" : "Core Anomaly",
+        transmission: minuteMark > 20 ? "CRITICAL ALERT: APEX DREADNOUGHT ANOMALY ENGAGED." : "HOSTILE VECTOR DETECTED. INITIATING TARGET ELIMINATION.",
+        color: minuteMark > 20 ? "#ff0077" : "#ff0055",
+        stats: { health_mult: 4.0 + minuteMark * 0.8 + extraHpMult, speed_mult: 0.9, damage_mult: 1.8 }
+      };
+    }
   }
 
   // Display Event Banner
-  if (eventTagTitle) eventTagTitle.textContent = `${(bossConfig.title || (minuteMark > 20 ? 'APEX DREADNOUGHT' : 'CRITICAL ANOMALY')).toUpperCase()} (BOSS ${minuteMark})`;
-  if (eventBossName) eventBossName.textContent = bossConfig.boss_name || (minuteMark > 20 ? `APEX TITAN MK-${minuteMark}` : `TITAN MARK-${minuteMark}`);
-  if (eventTransmission) eventTransmission.textContent = `"${bossConfig.transmission || 'PURGING INTRUDER ANOMALY.'}"`;
+  if (eventTagTitle) {
+    eventTagTitle.textContent = isUltraBossMark
+      ? "⚠️ ULTRA BOSS IMMINENT (MINUTE 10)"
+      : `${(bossConfig.title || (minuteMark > 20 ? 'APEX DREADNOUGHT' : 'CRITICAL ANOMALY')).toUpperCase()} (BOSS ${minuteMark})`;
+  }
+  if (eventBossName) eventBossName.textContent = bossConfig.boss_name;
+  if (eventTransmission) {
+    eventTransmission.textContent = isUltraBossMark
+      ? `"${bossConfig.transmission} [REINFORCEMENTS HALTED: 10s]"`
+      : `"${bossConfig.transmission || 'PURGING INTRUDER ANOMALY.'}"`;
+  }
   if (eventBanner) {
     eventBanner.classList.remove('hidden');
     setTimeout(() => {
       eventBanner.classList.add('hidden');
-    }, 4500);
+    }, isUltraBossMark ? 6000 : 4500);
   }
 
   // Spawn Boss Enemy descending from above current camera
@@ -1770,12 +1953,13 @@ async function triggerBossEncounter(minuteMark) {
     bossDifficulty += (minuteMark - 20) * 6.5;
   }
 
-  const bossEnemy = new Enemy('boss', spawnX, spawnY, bossDifficulty, bossConfig);
+  const spawnType = isUltraBossMark ? 'colossus' : 'boss';
+  const bossEnemy = new Enemy(spawnType, spawnX, spawnY, bossDifficulty, bossConfig);
   bossEnemy.bossMinute = minuteMark;
   game.enemies.push(bossEnemy);
 
-  // In mid & late game, bosses arrive with an elite strike wing escort
-  if (minuteMark >= 5) {
+  // In mid & late game, bosses arrive with an elite strike wing escort (EXCEPT Minute 10 Ultra Boss which stops all other spawns for 10s)
+  if (minuteMark >= 5 && !isUltraBossMark) {
     const escortCount = Math.min(8, Math.floor((minuteMark - 3) * 0.8));
     for (let i = 0; i < escortCount; i++) {
       const escortType = minuteMark >= 15 ? (Math.random() < 0.5 ? 'phantom' : 'bombard') : (Math.random() < 0.5 ? 'viper' : 'striker');
@@ -2578,11 +2762,11 @@ function drawMinimap(ctx) {
   // Draw Bosses on radar
   for (const e of game.enemies) {
     if (e.isBoss) {
-      ctx.fillStyle = '#ff0055';
-      ctx.shadowBlur = 6;
-      ctx.shadowColor = '#ff0055';
+      ctx.fillStyle = e.isUltraBoss ? '#ff00ff' : '#ff0055';
+      ctx.shadowBlur = e.isUltraBoss ? 10 : 6;
+      ctx.shadowColor = e.isUltraBoss ? '#ff00ff' : '#ff0055';
       ctx.beginPath();
-      ctx.arc(mapX + e.x * scaleX, mapY + e.y * scaleY, 4, 0, Math.PI * 2);
+      ctx.arc(mapX + e.x * scaleX, mapY + e.y * scaleY, e.isUltraBoss ? 6 : 4, 0, Math.PI * 2);
       ctx.fill();
     }
   }
@@ -2621,13 +2805,17 @@ function gameLoop(timestamp) {
       triggerBossEncounter(currentMinute);
     }
 
-    // Spawner tick: smoothly ramps down from 1.2s to 0.12s in deep end-game
-    game.spawnTimer += dt;
-    const mins = game.survivalTime / 60;
-    const currentSpawnRate = Math.max(0.12, game.spawnInterval - mins * 0.08 - (mins > 10 ? (mins - 10) * 0.015 : 0));
-    if (game.spawnTimer >= currentSpawnRate) {
-      game.spawnTimer = 0;
-      spawnEnemyWave();
+    // Spawner tick: smoothly ramps down from 1.2s to 0.12s in deep end-game (paused during Ultra Boss 10s arrival)
+    if (game.spawnPauseTimer > 0) {
+      game.spawnPauseTimer -= dt;
+    } else {
+      game.spawnTimer += dt;
+      const mins = game.survivalTime / 60;
+      const currentSpawnRate = Math.max(0.12, game.spawnInterval - mins * 0.08 - (mins > 10 ? (mins - 10) * 0.015 : 0));
+      if (game.spawnTimer >= currentSpawnRate) {
+        game.spawnTimer = 0;
+        spawnEnemyWave();
+      }
     }
 
     // Update Player & Camera
