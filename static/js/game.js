@@ -2307,7 +2307,7 @@ function initGame(showStartModal = true) {
   if (pauseBtn) {
     pauseBtn.textContent = '⏸️';
     pauseBtn.classList.remove('active');
-    pauseBtn.setAttribute('title', 'Pause Game [P / ESC]');
+    pauseBtn.setAttribute('title', 'Pause / Quit Menu [P / ESC]');
   }
   gameOverModal.classList.add('hidden');
 
@@ -3109,7 +3109,7 @@ function togglePause(forcePause = null) {
       if (pauseBtn) {
         pauseBtn.textContent = '⏸️';
         pauseBtn.classList.remove('active');
-        pauseBtn.setAttribute('title', 'Pause Game [P / ESC]');
+        pauseBtn.setAttribute('title', 'Pause / Quit Menu [P / ESC]');
       }
     }
   }
@@ -3169,7 +3169,7 @@ function closeLeaderboardModal() {
       if (pauseBtn) {
         pauseBtn.textContent = '⏸️';
         pauseBtn.classList.remove('active');
-        pauseBtn.setAttribute('title', 'Pause Game [P / ESC]');
+        pauseBtn.setAttribute('title', 'Pause / Quit Menu [P / ESC]');
       }
     }
   }
