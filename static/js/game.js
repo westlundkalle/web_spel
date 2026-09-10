@@ -921,9 +921,9 @@ class Enemy {
       this.xpValue = 10;
       this.warpCooldown = 3.0;
       this.warpTimer = 2.0 + Math.random() * 2.0;
-    } else if (type === 'devourer') { // Unlocks after Boss 5 (Minute 5+)
-      this.isBoss = true;
-      this.bossName = 'MEGA DEVOURER';
+    } else if (type === 'devourer') { // Unlocks after Boss 5 (Minute 5+) - Normal spawning elite wave enemy
+      this.isBoss = false;
+      this.enemyName = 'ABYSSAL DEVOURER';
       this.radius = 32;
       this.speed = 55 * (1 + speedMult * 0.02);
       let devourerHealth = 460 * this.difficultyMultiplier;
@@ -1014,8 +1014,9 @@ class Enemy {
     if (this.health <= 0) {
       this.markedForDeletion = true;
       sounds.playExplosion();
-      const isBossType = this.isBoss || this.type === 'boss' || this.type === 'devourer';
-      spawnExplosion(this.x, this.y, this.color, isBossType ? 50 : 12);
+      // Only actual scheduled encounter bosses drop boss artifacts, health cores, and mega XP clusters
+      const isBossType = (this.type === 'boss') && this.isBoss;
+      spawnExplosion(this.x, this.y, this.color, isBossType ? 50 : (this.type === 'devourer' ? 24 : 12));
       game.kills += 1;
       game.score += isBossType ? 3500 : (this.xpValue * 25);
 
@@ -1031,7 +1032,7 @@ class Enemy {
         createDamageNumber(game.player.x, game.player.y - 20, '+2 HP', '#00ff88');
       }
 
-      // ALL BOSSES (and mega Devourers) DROP LEGENDARY ARTIFACT + HEALTH CORE + XP CLUSTER
+      // ONLY ACTUAL SCHEDULED ENCOUNTER BOSSES DROP LEGENDARY ARTIFACT + HEALTH CORE + XP CLUSTER
       if (isBossType) {
         game.bossesDefeated = (game.bossesDefeated || 0) + 1;
         const bossNum = this.bossMinute || game.bossesDefeated;
