@@ -907,11 +907,16 @@ class Enemy {
     this.splitsOnDeath = false;
 
     const mins = game.survivalTime / 60;
-    // Controlled speed scaling to match high-tier thrusters while preserving dodgeability
-    const speedMult = Math.min(2.8, 1.0 + mins * 0.05);
+    // Speed scaling: scaled back by 15% before 10 min mark (0.05 -> 0.0425)
+    const speedMult = Math.min(2.8, 1.0 + (mins <= 10 ? mins * 0.0425 : (0.425 + (mins - 10) * 0.05)));
 
-    // Dynamic end-game damage scaling so mobs remain lethal to high-HP players
-    const dmgScaling = 1.0 + Math.max(0, (mins - 4) * 0.06) + Math.max(0, (mins - 12) * 0.12);
+    // Damage scaling: scaled back by 15% before 10 min mark (0.06 -> 0.051)
+    let dmgScaling = 1.0;
+    if (mins <= 10) {
+      if (mins > 4) dmgScaling += (mins - 4) * 0.051;
+    } else {
+      dmgScaling += 0.306 + (mins - 10) * 0.06 + Math.max(0, (mins - 12) * 0.12);
+    }
 
     if (type === 'boss' || bossConfig) {
       this.isBoss = true;
@@ -1908,12 +1913,19 @@ function spawnEnemyWave() {
   const bottom = Math.min(WORLD_HEIGHT, camera.y + camera.height + pad);
 
   const minutes = game.survivalTime / 60;
-  // Dynamic health scaling: steady ramp early, accelerated curve mid-game, dramatic surge in late/end-game
-  let difficultyMult = 1.0 + minutes * 0.8;
-  if (minutes > 3) difficultyMult += (minutes - 3) * 0.6;
-  if (minutes > 8) difficultyMult += (minutes - 8) * 1.6;
-  if (minutes > 14) difficultyMult += (minutes - 14) * 3.6;
-  if (minutes > 20) difficultyMult += (minutes - 20) * 8.0;
+  // Dynamic health scaling: scaled back by 15% before 10 min mark, aggressive surge in late/end-game
+  let difficultyMult = 1.0;
+  if (minutes <= 10) {
+    // 15% reduced scaling rates before 10 min mark (0.8 -> 0.68, 0.6 -> 0.51, 1.6 -> 1.36)
+    difficultyMult += minutes * 0.68;
+    if (minutes > 3) difficultyMult += (minutes - 3) * 0.51;
+    if (minutes > 8) difficultyMult += (minutes - 8) * 1.36;
+  } else {
+    // Exactly continuous at 10m (13.09 accumulated), then escalates into late/apex stages
+    difficultyMult += 13.09 + (minutes - 10) * 3.0;
+    if (minutes > 14) difficultyMult += (minutes - 14) * 3.6;
+    if (minutes > 20) difficultyMult += (minutes - 20) * 8.0;
+  }
 
   // Progressive enemy roster based on minute / boss progression:
   // Progressive enemy roster based on minute / boss progression:
@@ -1997,7 +2009,7 @@ async function triggerBossEncounter(minuteMark) {
         title: minuteMark > 20 ? "Apex Dreadnought Anomaly" : "Core Anomaly",
         transmission: minuteMark > 20 ? "CRITICAL ALERT: APEX DREADNOUGHT ANOMALY ENGAGED." : "HOSTILE VECTOR DETECTED. INITIATING TARGET ELIMINATION.",
         color: minuteMark > 20 ? "#ff0077" : "#ff0055",
-        stats: { health_mult: 4.0 + minuteMark * 0.8 + extraHpMult, speed_mult: 0.9, damage_mult: 1.8 }
+        stats: { health_mult: 4.0 + (minuteMark <= 10 ? minuteMark * 0.68 : (6.8 + (minuteMark - 10) * 0.8)) + extraHpMult, speed_mult: 0.9, damage_mult: 1.8 }
       };
     }
   }
@@ -2025,10 +2037,12 @@ async function triggerBossEncounter(minuteMark) {
   const spawnX = Math.max(80, Math.min(WORLD_WIDTH - 80, camera.x + camera.width / 2));
   const spawnY = Math.max(40, camera.y - 50);
 
-  // Scaled boss difficulty progression with accelerated curve into mid & late game, and massive scaling in apex stage
-  let bossDifficulty = 1.0 + (minuteMark - 1) * 0.8;
-  if (minuteMark > 10) {
-    bossDifficulty += (minuteMark - 10) * 1.5;
+  // Scaled boss difficulty progression: scaled back by 15% before 10 min mark (0.8 -> 0.68), with massive end-game scaling post-10
+  let bossDifficulty = 1.0;
+  if (minuteMark <= 10) {
+    bossDifficulty += (minuteMark - 1) * 0.68;
+  } else {
+    bossDifficulty += 6.12 + (minuteMark - 10) * 1.5;
   }
   if (minuteMark > 15) {
     bossDifficulty += (minuteMark - 15) * 3.0;
@@ -2989,7 +3003,9 @@ function gameLoop(timestamp) {
     } else {
       game.spawnTimer += dt;
       const mins = game.survivalTime / 60;
-      const currentSpawnRate = Math.max(0.12, game.spawnInterval - mins * 0.08 - (mins > 10 ? (mins - 10) * 0.015 : 0));
+      // Spawner interval reduction: scaled back by 15% before 10 min mark (0.08 -> 0.068)
+      const rateScaling = mins <= 10 ? mins * 0.068 : (0.68 + (mins - 10) * 0.08);
+      const currentSpawnRate = Math.max(0.12, game.spawnInterval - rateScaling - (mins > 10 ? (mins - 10) * 0.015 : 0));
       if (game.spawnTimer >= currentSpawnRate) {
         game.spawnTimer = 0;
         spawnEnemyWave();
