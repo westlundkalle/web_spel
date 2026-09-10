@@ -12,6 +12,9 @@ const ctx = canvas.getContext('2d');
 const WORLD_WIDTH = 1920;
 const WORLD_HEIGHT = 1280;
 
+// Maximum Active Enemies Cap (Anti-Lag / Performance Guard)
+const MAX_ENEMIES = 120;
+
 // Camera System (+50% Visible Area Expansion: 1.5x World Area visible via Camera Zoom)
 const CAMERA_ZOOM = 1 / Math.sqrt(1.5); // ~0.8165 gives exactly 1.5x visible area
 const camera = {
@@ -1259,62 +1262,276 @@ class Enemy {
 
     if (this.isBoss) {
       if (this.isUltraBoss) {
-        // Grand Ultra Boss rendering: Triple rotating dark-energy rings & void singularity
-        ctx.shadowBlur = 32;
-        ctx.shadowColor = '#b5179e';
+        // =========================================================================
+        // APEX HYPER BOSS: "VOID COLOSSUS OMEGA" - UNIQUE DREADNOUGHT WARSHIP MODEL
+        // =========================================================================
+        const now = Date.now();
+        const r = this.radius;
 
-        // Outer counter-rotating runic spikes
+        // 1. Omnidirectional Quantum Distortion Shockwaves (ambient gravitational ripples)
         ctx.save();
-        ctx.rotate(-Date.now() / 420);
-        ctx.strokeStyle = '#b5179e';
-        ctx.lineWidth = 3.5;
+        const ripplePhase = (now % 2400) / 2400;
+        const rippleR = r * (1.1 + ripplePhase * 1.6);
+        const rippleAlpha = Math.max(0, 1 - ripplePhase);
+        ctx.strokeStyle = `rgba(181, 23, 158, ${rippleAlpha * 0.55})`;
+        ctx.lineWidth = 2.5;
+        ctx.shadowBlur = 16;
+        ctx.shadowColor = '#b5179e';
         ctx.beginPath();
-        const outerSpikes = 12;
-        for (let i = 0; i < outerSpikes * 2; i++) {
-          const r = (i % 2 === 0) ? this.radius * 1.4 : this.radius * 1.05;
-          const a = (i * Math.PI) / outerSpikes;
-          const px = Math.cos(a) * r;
-          const py = Math.sin(a) * r;
+        ctx.arc(0, 0, rippleR, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+
+        // 2. Floating Quantum Hex-Aegis Barrier (Counter-rotating outer shield)
+        ctx.save();
+        ctx.rotate(-now / 550);
+        ctx.strokeStyle = 'rgba(0, 240, 255, 0.45)';
+        ctx.lineWidth = 1.8;
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = '#00f0ff';
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+          const a = (i * Math.PI) / 3;
+          const px = Math.cos(a) * (r * 1.55);
+          const py = Math.sin(a) * (r * 1.55);
           if (i === 0) ctx.moveTo(px, py);
           else ctx.lineTo(px, py);
         }
         ctx.closePath();
         ctx.stroke();
+
+        // Shield node emitters at vertices
+        for (let i = 0; i < 6; i++) {
+          const a = (i * Math.PI) / 3;
+          ctx.fillStyle = (i % 2 === 0) ? '#ff007f' : '#00f0ff';
+          ctx.beginPath();
+          ctx.arc(Math.cos(a) * (r * 1.55), Math.sin(a) * (r * 1.55), 3.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
         ctx.restore();
 
-        // Middle energy vortex
+        // 3. Directional Warship Chassis (Faces movement / player direction)
         ctx.save();
-        ctx.rotate(Date.now() / 260);
-        ctx.strokeStyle = '#00f0ff';
+        ctx.rotate(this.angle);
+
+        // Quad Afterburner Thruster Plumes (Rear)
+        const thrusterY = [-r * 0.45, -r * 0.18, r * 0.18, r * 0.45];
+        const flameLength = (r * 0.5) + Math.sin(now / 40) * (r * 0.15);
+        for (const ty of thrusterY) {
+          ctx.save();
+          ctx.shadowBlur = 14;
+          ctx.shadowColor = '#ff007f';
+          const flameGrad = ctx.createLinearGradient(-r * 0.85, ty, -r * 0.85 - flameLength, ty);
+          flameGrad.addColorStop(0, '#ffffff');
+          flameGrad.addColorStop(0.3, '#00f0ff');
+          flameGrad.addColorStop(0.8, '#ff007f');
+          flameGrad.addColorStop(1, 'transparent');
+          ctx.fillStyle = flameGrad;
+          ctx.beginPath();
+          ctx.moveTo(-r * 0.8, ty - 4);
+          ctx.lineTo(-r * 0.85 - flameLength, ty);
+          ctx.lineTo(-r * 0.8, ty + 4);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+        }
+
+        // Heavy Armor Hull Shadow / Ambient Glow
+        ctx.shadowBlur = 30;
+        ctx.shadowColor = '#b5179e';
+
+        // Secondary Outer Bastion Wings (Swept Heavy Delta Plating)
+        ctx.fillStyle = '#0a0314';
+        ctx.strokeStyle = '#b5179e';
         ctx.lineWidth = 2.5;
-        ctx.strokeRect(-this.radius * 0.85, -this.radius * 0.85, this.radius * 1.7, this.radius * 1.7);
+        ctx.beginPath();
+        ctx.moveTo(r * 0.2, -r * 0.4);
+        ctx.lineTo(-r * 0.4, -r * 1.35); // Left Wing Tip
+        ctx.lineTo(-r * 0.85, -r * 1.1);
+        ctx.lineTo(-r * 0.7, -r * 0.35);
+        ctx.lineTo(-r * 0.7, r * 0.35);
+        ctx.lineTo(-r * 0.85, r * 1.1);
+        ctx.lineTo(-r * 0.4, r * 1.35);  // Right Wing Tip
+        ctx.lineTo(r * 0.2, r * 0.4);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // Wing Weapon Pod Batteries (Outriggers with pulsating artillery lenses)
+        [-r * 1.15, r * 1.15].forEach(wy => {
+          ctx.save();
+          ctx.shadowBlur = 16;
+          ctx.shadowColor = '#ff007f';
+          ctx.fillStyle = '#1b0629';
+          ctx.strokeStyle = '#ff007f';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(-r * 0.65, wy - 6, r * 0.45, 12);
+          ctx.fillRect(-r * 0.65, wy - 6, r * 0.45, 12);
+
+          // Glowing cannon lens
+          ctx.fillStyle = '#00f0ff';
+          ctx.beginPath();
+          ctx.arc(-r * 0.2, wy, 3, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        });
+
+        // Main Armored Flagship Chassis (Menacing Forward Prow & Mandibles)
+        ctx.fillStyle = '#140524';
+        ctx.strokeStyle = '#ff007f';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        // Nose firing notch
+        ctx.moveTo(r * 0.7, 0);
+        // Left Heavy Mandible
+        ctx.lineTo(r * 0.9, -r * 0.25);
+        ctx.lineTo(r * 1.6, -r * 0.55); // Top mandible sharp tip
+        ctx.lineTo(r * 1.3, -r * 0.75);
+        ctx.lineTo(r * 0.4, -r * 0.8);
+        ctx.lineTo(-r * 0.4, -r * 0.85);
+        // Aft Engine Cowling
+        ctx.lineTo(-r * 0.9, -r * 0.5);
+        ctx.lineTo(-r * 0.9, r * 0.5);
+        // Right Heavy Mandible
+        ctx.lineTo(-r * 0.4, r * 0.85);
+        ctx.lineTo(r * 0.4, r * 0.8);
+        ctx.lineTo(r * 1.3, r * 0.75);
+        ctx.lineTo(r * 1.6, r * 0.55);  // Bottom mandible sharp tip
+        ctx.lineTo(r * 0.9, r * 0.25);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        // High-Voltage Electric Arc Discharges between the two mandibles
+        ctx.save();
+        ctx.strokeStyle = '#00f0ff';
+        ctx.lineWidth = 2;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = '#00f0ff';
+        ctx.beginPath();
+        const arcJitter1 = (Math.random() - 0.5) * 12;
+        const arcJitter2 = (Math.random() - 0.5) * 12;
+        ctx.moveTo(r * 1.45, -r * 0.5);
+        ctx.lineTo(r * 1.0 + arcJitter1, arcJitter2);
+        ctx.lineTo(r * 1.45, r * 0.5);
+        ctx.stroke();
         ctx.restore();
 
-        // Dark matter core
-        ctx.fillStyle = '#06010a';
+        // Forward Hull Neon Conduit Engravings
+        ctx.save();
+        ctx.strokeStyle = '#00f0ff';
+        ctx.lineWidth = 1.6;
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = '#00f0ff';
+        // Left conduit line
         ctx.beginPath();
-        ctx.arc(0, 0, this.radius * 0.75, 0, Math.PI * 2);
+        ctx.moveTo(r * 1.25, -r * 0.55);
+        ctx.lineTo(r * 0.6, -r * 0.4);
+        ctx.lineTo(0, -r * 0.35);
+        ctx.stroke();
+        // Right conduit line
+        ctx.beginPath();
+        ctx.moveTo(r * 1.25, r * 0.55);
+        ctx.lineTo(r * 0.6, r * 0.4);
+        ctx.lineTo(0, r * 0.35);
+        ctx.stroke();
+        ctx.restore();
+
+        // Central Singularity Reactor Chamber (Multi-Layered Event Horizon)
+        // Outer Accretion Vortex
+        ctx.save();
+        ctx.rotate(now / 180);
+        ctx.strokeStyle = '#b5179e';
+        ctx.lineWidth = 2.5;
+        ctx.shadowBlur = 14;
+        ctx.shadowColor = '#b5179e';
+        ctx.strokeRect(-r * 0.42, -r * 0.42, r * 0.84, r * 0.84);
+        ctx.restore();
+
+        // Inner Gyro Energy Ring
+        ctx.save();
+        ctx.rotate(-now / 220);
+        ctx.strokeStyle = '#00f0ff';
+        ctx.lineWidth = 2;
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = '#00f0ff';
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.38, 0, Math.PI * 2);
+        ctx.stroke();
+        // 4 Quantum Core Beads
+        for (let i = 0; i < 4; i++) {
+          const a = (i * Math.PI) / 2;
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(Math.cos(a) * (r * 0.38), Math.sin(a) * (r * 0.38), 2.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+
+        // Pure Dark Matter Singularity Core
+        ctx.fillStyle = '#020006';
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.3, 0, Math.PI * 2);
         ctx.fill();
 
-        // Pulsating magenta singularity
-        const pulse = 1 + Math.sin(Date.now() / 90) * 0.25;
+        // Pulsating Magenta Flare Pupil
+        const corePulse = 1.0 + Math.sin(now / 75) * 0.28;
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = '#ff007f';
         ctx.fillStyle = '#ff007f';
         ctx.beginPath();
-        ctx.arc(0, 0, this.radius * 0.45 * pulse, 0, Math.PI * 2);
+        ctx.arc(0, 0, r * 0.2 * corePulse, 0, Math.PI * 2);
         ctx.fill();
 
+        // White Quantum Needle Center
         ctx.fillStyle = '#ffffff';
         ctx.beginPath();
-        ctx.arc(0, 0, this.radius * 0.2, 0, Math.PI * 2);
+        ctx.arc(0, 0, r * 0.08, 0, Math.PI * 2);
         ctx.fill();
 
-        // Ultra Boss Name Banner
-        ctx.fillStyle = '#ffd700';
+        ctx.restore(); // Restore directional warship rotation
+
+        // =========================================================================
+        // 4. Overhead Hyper Boss Status Display (Kept Upright)
+        // =========================================================================
+        ctx.save();
+        // Boss Title & Threat Rank
         ctx.font = 'bold 12px Orbitron, sans-serif';
         ctx.textAlign = 'center';
         ctx.shadowColor = '#000';
+        ctx.shadowBlur = 8;
+        ctx.fillStyle = '#ffd700';
+        ctx.fillText('👑 ' + this.bossName + ' 👑', 0, -r - 28);
+
+        ctx.font = 'bold 8px Orbitron, sans-serif';
+        ctx.fillStyle = '#ff007f';
+        ctx.shadowColor = '#ff007f';
         ctx.shadowBlur = 6;
-        ctx.fillText('👑 ' + this.bossName + ' 👑', 0, -this.radius - 18);
+        ctx.fillText('⚡ HYPER CLASS TITAN ⚡', 0, -r - 18);
+
+        // Dedicated Overhead Hyper Boss Health Bar
+        const barW = 110;
+        const barH = 6;
+        const barX = -barW / 2;
+        const barY = -r - 12;
+        const hpPct = Math.max(0, Math.min(1, this.health / (this.maxHealth || 1)));
+
+        // Background
+        ctx.fillStyle = 'rgba(10, 3, 20, 0.85)';
+        ctx.strokeStyle = 'rgba(0, 240, 255, 0.5)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(barX, barY, barW, barH);
+        ctx.fillRect(barX, barY, barW, barH);
+
+        // Fill with gradient (Magenta -> Neon Cyan)
+        if (hpPct > 0) {
+          const hpGrad = ctx.createLinearGradient(barX, barY, barX + barW * hpPct, barY);
+          hpGrad.addColorStop(0, '#ff007f');
+          hpGrad.addColorStop(1, '#00f0ff');
+          ctx.fillStyle = hpGrad;
+          ctx.fillRect(barX, barY, barW * hpPct, barH);
+        }
+        ctx.restore();
       } else {
         ctx.shadowBlur = 24;
         ctx.shadowColor = this.color;
@@ -1949,7 +2166,28 @@ function spawnEnemyWave() {
   if (minutes >= 15) spawnCount = Math.floor(4 + Math.random() * 3);     // 4 - 6 enemies
   if (minutes >= 20) spawnCount = Math.floor(6 + Math.random() * 4);     // 6 - 9 enemies!
 
-  for (let s = 0; s < spawnCount; s++) {
+  // Maximum Active Enemies Cap (Anti-Lag / Performance Guard)
+  if (game.enemies.length >= MAX_ENEMIES) {
+    const playerX = game.player ? game.player.x : WORLD_WIDTH / 2;
+    const playerY = game.player ? game.player.y : WORLD_HEIGHT / 2;
+    // Cull distant non-boss enemies (> 1150px away from player) to prevent stranded mobs from blocking fresh local spawns
+    for (let i = 0; i < game.enemies.length; i++) {
+      const e = game.enemies[i];
+      if (!e.isBoss && Math.hypot(e.x - playerX, e.y - playerY) > 1150) {
+        e.markedForDeletion = true;
+      }
+    }
+    game.enemies = game.enemies.filter(e => !e.markedForDeletion);
+    if (game.enemies.length >= MAX_ENEMIES) {
+      return; // Arena is at peak capacity, skip wave spawn
+    }
+  }
+
+  const availableSlots = Math.max(0, MAX_ENEMIES - game.enemies.length);
+  const actualSpawnCount = Math.min(spawnCount, availableSlots);
+  if (actualSpawnCount <= 0) return;
+
+  for (let s = 0; s < actualSpawnCount; s++) {
     let x, y;
     const edge = Math.floor(Math.random() * 4);
     if (edge === 0) { x = left + Math.random() * (right - left); y = top; }
